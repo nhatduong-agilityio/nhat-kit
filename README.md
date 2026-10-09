@@ -1,6 +1,6 @@
 # claude-kit — a personal engineer kit for Claude Code
 
-The `nhat-kit` marketplace contains the **devkit 2.0.1** plugin: 15 commands, 9 subagents, 2 hooks, and 4-layer project templates. It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
+The `nhat-kit` marketplace contains the **devkit 2.1.0** plugin: 15 commands, 9 subagents, 2 hooks, and 4-layer project templates. It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
 
 ## Commands
 
@@ -45,6 +45,72 @@ Periodically:    /devkit:retro, /devkit:check
 ```
 
 Plans live in `plans/<date>-<slug>/` (plan.md, research/, report.md); task specs in `docs/tasks/<ID>-<slug>/SPEC.md`. Plans, pushes, and PRs always wait for your approval. Shared conventions: `plugins/devkit/references/conventions.md`.
+
+## Getting started
+
+### New project (greenfield)
+
+1. **Write a requirements doc** — bullet points are fine. Include what you're building, the tech stack, and the key features. Save it as `docs/requirements.md`.
+
+2. **Create the project folder and open Claude Code:**
+
+   ```bash
+   mkdir my-project && cd my-project
+   claude
+   ```
+
+3. **Run bootstrap:**
+
+   ```text
+   /devkit:bootstrap docs/requirements.md --greenfield
+   ```
+
+   Bootstrap asks at most 4 clarifying questions, shows a plan, and waits for your approval. On approval it sets up all 4 layers: `git init`, `.gitignore`, `.claude/settings.json`, hooks, `CLAUDE.md`, per-module rules, and runs `/run-skill-generator` to write a project-specific verify skill.
+
+4. **Add a GitHub remote** after bootstrap finishes:
+
+   ```bash
+   git remote add origin git@github.com:you/repo.git
+   git push -u origin main
+   ```
+
+5. **Run `/devkit:check`** to confirm all 4 layers are healthy, then start work:
+
+   ```text
+   /devkit:task PROJ-001            # if you have BA tickets
+   /devkit:brainstorm <problem>     # if you're exploring
+   ```
+
+---
+
+### Existing project
+
+1. **Open Claude Code** in the project root:
+
+   ```bash
+   cd my-existing-project
+   claude
+   ```
+
+2. **Run bootstrap**, pointing it at any existing doc (README, architecture notes, a spec):
+
+   ```text
+   /devkit:bootstrap README.md
+   ```
+
+   Bootstrap reads the existing code first (an Explore pass), then proposes only the layers that are missing. It never overwrites files that already exist — it merges additions.
+
+3. **Review what bootstrap created**, especially `CLAUDE.md`. Edit it to match your real commands:
+
+   ```text
+   build: npm run build
+   test:  npm test
+   lint:  npx eslint src
+   ```
+
+4. **Run `/run-skill-generator`** (built-in since Claude Code v2.1.215) to write a project-specific verify skill that knows your actual launch commands.
+
+5. **Run `/devkit:check`** to see the full 4-layer health status and any remaining gaps.
 
 ## Install (once per machine)
 
@@ -122,8 +188,8 @@ claude-kit/
 ├── user-setup/{settings.json,CLAUDE.md}
 └── plugins/devkit/
     ├── .claude-plugin/plugin.json
-    ├── skills/      14 commands
-    ├── agents/      8 subagents
+    ├── skills/      15 commands
+    ├── agents/      9 subagents
     ├── hooks/hooks.json, scripts/
     ├── references/conventions.md
     └── templates/   CLAUDE.md, settings.json, rules, hooks, agents, docs, PR
