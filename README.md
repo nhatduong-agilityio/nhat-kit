@@ -1,6 +1,6 @@
 # claude-kit — a personal engineer kit for Claude Code
 
-The `nhat-kit` marketplace contains the **devkit 2.0.0** plugin: 14 commands, 8 subagents, 2 hooks, and 4-layer project templates. It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
+The `nhat-kit` marketplace contains the **devkit 2.0.1** plugin: 14 commands, 8 subagents, 2 hooks, and 4-layer project templates. It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
 
 ## Commands
 
@@ -53,15 +53,23 @@ Plans live in `plans/<date>-<slug>/` (plan.md, research/, report.md); task specs
    curl -fsSL https://claude.ai/install.sh | bash
    ```
 
-2. Push this folder to a **private** GitHub repo (e.g. `claude-kit`) so every machine updates from the same source.
+2. Clone this repo to a consistent local path on each machine (e.g. `~/claude-kit`):
+
+   ```bash
+   git clone git@github.com:nhatduong-agilityio/nhat-kit.git ~/claude-kit
+   ```
+
 3. Add the marketplace and install the plugin:
 
    ```bash
-   claude plugin marketplace add <github-user>/claude-kit   # or a local path: ~/claude-kit
+   claude plugin marketplace add nhatduong-agilityio/nhat-kit   # or local: ~/claude-kit
    claude plugin install devkit@nhat-kit
    claude plugin details devkit
    ```
-4. Merge `user-setup/settings.json` into `~/.claude/settings.json` (auto mode by default, blocks reading `.env`), and `user-setup/CLAUDE.md` into `~/.claude/CLAUDE.md` (chat in Vietnamese, all artifacts in English).
+
+4. Merge `user-setup/` into your global `~/.claude/` config:
+   - **`user-setup/settings.json`** → add its `allow`/`deny`/`ask` blocks into `~/.claude/settings.json` (creates it if absent). Key entries: `deny .env*`, `ask git push`.
+   - **`user-setup/CLAUDE.md`** → append to `~/.claude/CLAUDE.md` (or create it). Tells Claude to chat in Vietnamese and write every artifact in English.
 5. Hooks need `bash`. On Windows, use WSL or Git for Windows. JSON is parsed with `jq`, falling back to `python3`, then `node`.
 
 ## Updating (like `ck update`)

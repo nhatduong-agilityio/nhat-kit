@@ -4,6 +4,10 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ## [Unreleased]
 
+### Fixed
+
+- `README.md`: updated version badge to 2.0.1; replaced "push this folder" install step with `git clone` from the live repo; replaced `<github-user>/claude-kit` placeholder with `nhatduong-agilityio/nhat-kit`; expanded `user-setup/` merge instructions with concrete steps.
+
 ## [2.0.1] - 2026-10-09
 
 ### Fixed
