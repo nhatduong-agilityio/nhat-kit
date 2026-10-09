@@ -8,6 +8,7 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 - `README.md`: updated version badge to 2.0.1; replaced "push this folder" install step with `git clone` from the live repo; replaced `<github-user>/claude-kit` placeholder with `nhatduong-agilityio/nhat-kit`; expanded `user-setup/` merge instructions with concrete steps.
 - `bootstrap`: Layer 3 now calls `/run-skill-generator` (built-in since Claude Code v2.1.215) instead of copying the generic verify template. Resolves ND-2: the template's `name: verify` shadowed the built-in `/verify` command. Removed `templates/skills/verify/SKILL.md`.
+- `check`: re-added `/doctor prompt-audit` (confirmed built-in since v2.1.283) alongside `/doctor` in the recommendations line; includes version caveat.
 
 ## [2.0.1] - 2026-10-09
 

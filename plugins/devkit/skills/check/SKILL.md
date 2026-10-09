@@ -28,4 +28,4 @@ Read only; change nothing. Return one table: Layer · Item · Status (OK / Missi
 - `docs/tasks/_TEMPLATE/SPEC.md`, `docs/BACKLOG.md`, `.github/pull_request_template.md` (if using GitHub).
 - Work in progress: the contents of `.claude/current-task`.
 
-After the table: at most 5 recommended actions, ordered by impact. Suggest `/devkit:bootstrap` to fill gaps, `/devkit:review` to review `CLAUDE.md` for conflicting instructions, and `/doctor` (Claude Code built-in) for a full installation health-check.
+After the table: at most 5 recommended actions, ordered by impact. Suggest `/devkit:bootstrap` to fill gaps, `/devkit:review` to review `CLAUDE.md` for conflicting instructions, `/doctor` (Claude Code built-in) for a full installation health-check, and `/doctor prompt-audit` (v2.1.283+) to audit `CLAUDE.md` instructions for internal conflicts and redundancies.
