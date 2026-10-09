@@ -4,6 +4,8 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-09
+
 ### Added
 
 - `/devkit:deploy`: new skill for post-merge deployment to staging then production. Auto-detects platform from config files (Vercel, Fly.io, Railway, Docker Compose, or a custom `deploy` script); asks for confirmation before each environment; reports deployment URLs as evidence. Supports `--dry-run` to preview without deploying.

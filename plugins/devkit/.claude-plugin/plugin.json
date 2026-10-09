@@ -1,7 +1,7 @@
 {
   "name": "devkit",
   "description": "Personal engineer kit: plan, cook, fix, debug, test, review, git, ship, scout, brainstorm; bootstrap all 4 layers from a requirements doc; BA task to PR",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "author": {
     "name": "Duong Cong Nhat"
   }
