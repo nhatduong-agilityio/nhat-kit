@@ -12,6 +12,7 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 - `cook`: added `/batch` escalation note for codebase-wide changes spanning 10+ independent modules.
 - `plan`: added `/advisor fable` suggestion in step 6 for High/Critical risk plans.
 - `ship`: added `/autofix-pr` suggestion after gate 8 opens the PR.
+- All 8 agents: added expert-persona role titles to the opening instruction line (Staff Engineer, Senior SRE, QA Lead, etc.), matching the ClaudeKit v2.14.0 agent upgrade pattern.
 
 ## [2.0.1] - 2026-10-09
 
