@@ -7,6 +7,9 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 ### Fixed
 
 - `README.md`: added "Getting started" section with step-by-step flows for new (greenfield) and existing projects; updated version badge to 2.1.0; corrected repo layout counts to 15 commands / 9 subagents.
+- `upstream-watch`: `llms.txt` is now the primary source; skill fetches `https://docs.claudekit.cc/llms.txt` first to discover the current doc structure before reading individual pages.
+- `UPSTREAM.md`: marked P-1 through P-4 and P-8 as ✅ (applied in 2.1.0); updated matching devkit version to 2.1.0; added `security-scan` (P-14) and Hook Diagnostics Dashboard (P-15) entries; added llms.txt checkpoint row.
+- Added `upstream/proposals/20261009b.md`: second-pass proposal table ranking P-6, P-7, P-9, P-10, P-14, P-15 with four v2.2.0 space options (recommended: Space A — Security + Discoverability).
 
 ## [2.1.0] - 2026-10-09
 

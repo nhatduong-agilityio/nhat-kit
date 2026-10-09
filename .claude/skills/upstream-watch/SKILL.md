@@ -10,14 +10,14 @@ Run inside the `claude-kit` repo. The output is **proposals**, not code. Write e
 
 ## Hard boundaries
 
-- Read **public** pages only: `https://docs.claudekit.cc/docs/changelog`, `https://docs.claudekit.cc/docs/engineer`, `https://docs.claudekit.cc/docs/engineer/agents`, and public sub-pages linked from them.
+- Read **public** pages only: `https://docs.claudekit.cc/llms.txt` (primary index), `https://docs.claudekit.cc/docs/changelog`, `https://docs.claudekit.cc/docs/engineer`, `https://docs.claudekit.cc/docs/engineer/agents`, and any Engineer Kit sub-pages the llms.txt or those pages link to.
 - Never access, or try to obtain, ClaudeKit's private repo, installers, or skill contents.
 - Describe features in your own words (at most 2 sentences each); never copy wording from the source pages.
 
 ## Process
 
 1. Read `UPSTREAM.md`: the last review date, the reviewed ClaudeKit version, the feature table.
-2. Read the ClaudeKit pages above. Extract releases newer than the reviewed one (version, date, main changes) and skills/agents added or removed compared to the table.
+2. Fetch `https://docs.claudekit.cc/llms.txt` first — it is the machine-readable documentation index and always reflects the current structure. Use the Engineer Kit URLs it lists to navigate to the changelog and skills/agents pages. Extract releases newer than the reviewed one (version, date, main changes) and skills/agents added or removed compared to the table.
 3. Read `https://code.claude.com/docs/en/commands` and the Claude Code changelog if available. Look for new built-in features that could replace a devkit skill (mark it ⊘ and remove our code).
 4. Classify each new item:
    - **Add**: in scope (frontend, full-stack web, team workflow) with no equivalent yet.

@@ -6,10 +6,11 @@ devkit is written entirely from scratch. ClaudeKit serves only as an **idea sour
 
 | Item | Value |
 | --- | --- |
-| Last reviewed | 2026-10-09 |
-| Latest ClaudeKit release in the public changelog | v2.13.0 (2026-02-25); v2.14.0 announced as upcoming (deploy, llms, project-organization, 3-tier evals, expert-persona agents) |
+| Last reviewed | 2026-10-09 (second pass) |
+| Latest ClaudeKit release in the public changelog | v2.13.0 (2026-02-25); v2.14.0 upcoming (deploy ✅, llms, project-organization, 3-tier evals, expert-persona ✅, security-scan, ship ✅, retro ✅) |
+| llms.txt reviewed | https://docs.claudekit.cc/llms.txt — 2026-10-09 |
 | Claude Code commands reference | code.claude.com/docs/en/commands — reviewed 2026-10-09 |
-| Matching devkit version | 2.0.1 |
+| Matching devkit version | 2.1.0 |
 
 ## Feature table
 
@@ -45,6 +46,7 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 | skill-creator | `skill-creator` plugin | ⊘ | |
 | deploy (v2.14.0 upcoming) | `/devkit:deploy` | ✅ | P-5 done: staging → prod, auto-detects platform, asks before prod |
 | llms (v2.14.0 upcoming) | — | ⏳ | P-6: `/devkit:llms` llms.txt generator |
+| security-scan (v2.14.0 upcoming) | — | ⏳ | P-14: vulnerability scan, OWASP checks, secrets detection |
 | project-organization (v2.14.0) | — | ⏳ | relates to bootstrap 4-layer setup |
 | backend-development | — | ⏳ | P-9: `/devkit:backend` server-side architecture skill |
 | databases | — | ⏳ | P-10: `/devkit:db` or merged into P-9 |
@@ -76,6 +78,7 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 | CLI `ck init` / `ck update` | marketplace + `claude plugin update` | ✅ |
 | Protective hooks (scout-block, guards) | `protect-files` hook | ◐ |
 | Quality gate hooks, diagnostics | — | ⏳ | P-7: extend test-hooks.sh with LLM-judge step |
+| Hook Diagnostics Dashboard (CLI v3.36.0 upcoming) | — | ⏳ | P-15: execution logs, timing, and error output from test-hooks.sh |
 | Statusline | — | ⏳ | |
 | 3-tier eval system (v2.14.0 upcoming) | — | ⏳ | P-7 covers the hooks layer |
 
@@ -83,15 +86,15 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 
 | Built-in | devkit impact | Status |
 | --- | --- | --- |
-| `/run` + `/run-skill-generator` | bootstrap should call `/run-skill-generator` instead of copying verify template | ⏳ P-1 |
-| `/batch` | mention in `cook` for large parallel changes | ⏳ P-2 |
-| `/advisor` | suggest in `plan` for high-risk plans | ⏳ P-3 |
-| `/autofix-pr` | mention in `ship` gate 8 after PR opens | ⏳ P-4 |
+| `/run` + `/run-skill-generator` | bootstrap now calls `/run-skill-generator`; verify template removed (ND-2) | ✅ P-1 (2.1.0) |
+| `/batch` | mentioned in `cook` for large parallel changes | ✅ P-2 (2.1.0) |
+| `/advisor` | mentioned in `plan` for high-risk plans | ✅ P-3 (2.1.0) |
+| `/autofix-pr` | mentioned in `ship` gate 8 after PR opens | ✅ P-4 (2.1.0) |
 | `/design` | built-in; no devkit equivalent needed | ⊘ |
 | `/goal` | persistent goals across turns | ⊘ |
 | `/dataviz` | data-visualization guidance | ⊘ |
 | `/slides` | slide-deck creation | ⊘ |
-| `/doctor prompt-audit` | confirmed built-in (v2.1.283+); re-add to `check` | ⏳ P-8 |
+| `/doctor prompt-audit` | re-added to `check` with v2.1.283+ caveat | ✅ P-8 (2.1.0) |
 | `/import` | migrate from Cursor/Codex/Gemini | ⊘ |
 
 ### devkit only
@@ -103,4 +106,5 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 | Date | ClaudeKit version | Proposals | Applied in |
 | --- | --- | --- | --- |
 | 2026-10-09 | v2.13.0 | Initial table | devkit 2.0.0 |
-| 2026-10-09 | v2.13.0 / v2.14.0 upcoming | P-1 through P-11; see upstream/proposals/20261009.md | — |
+| 2026-10-09 | v2.13.0 / v2.14.0 upcoming | P-1–P-11 proposed; P-12/P-13 skipped; P-1–P-8, P-11 applied | devkit 2.1.0 |
+| 2026-10-09 | v2.14.0 upcoming; llms.txt | Second pass: P-14 (security-scan), P-15 (hook diagnostics); see upstream/proposals/20261009b.md | — |
