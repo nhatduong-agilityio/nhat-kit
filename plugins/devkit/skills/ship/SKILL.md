@@ -18,6 +18,6 @@ Conventions: `${CLAUDE_PLUGIN_ROOT}/references/conventions.md`. The plugin folde
 5. **Real app**: the project's `verify` skill if present; UI → the `ui-verifier` agent if present.
 6. **Review**: the `devkit:code-reviewer` subagent with the target document. Any Critical left → stop.
 7. **Docs**: user-visible behavior, API, or config changed → update the related README/docs; if the repo has `CHANGELOG.md` → add an entry under "Unreleased".
-8. **Deliver**: follow the `/devkit:git pr` procedure (read `${CLAUDE_PLUGIN_ROOT}/skills/git/SKILL.md`). Ask for confirmation before pushing.
+8. **Deliver**: follow the `/devkit:git pr` procedure (read `${CLAUDE_PLUGIN_ROOT}/skills/git/SKILL.md`). Ask for confirmation before pushing. After the PR opens, suggest `/autofix-pr` so Claude Code watches CI failures and review comments and pushes fixes automatically.
 
 Reply with: a table of the 8 gates (passed / failed / skipped with reason) and the PR link.

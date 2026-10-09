@@ -46,5 +46,6 @@ Apply the valid findings to the plan; record rejected findings and why at the en
 ## 6. Present and confirm
 
 - Present a summary: goal, approach, phases (one line each), key risks, decisions needed. Suggest `Ctrl+G` or opening the file to edit it.
+- If the plan has any High or Critical risk, suggest enabling `/advisor fable` for the cook phase so a second model gives guidance at key moments.
 - **Wait for the user's approval.** On approval: set `Status: approved` and write the plan path to `.claude/current-task`.
 - Next step: `/devkit:cook plans/<...>/plan.md`.

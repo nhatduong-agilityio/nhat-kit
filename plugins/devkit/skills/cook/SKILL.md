@@ -28,6 +28,8 @@ Conventions: `${CLAUDE_PLUGIN_ROOT}/references/conventions.md` — pass this pat
 
 Independent phases that share no files may run in parallel with multiple `fullstack-developer` subagents. Do this only when the plan states they are independent.
 
+If the change spans 10+ independent modules across the whole codebase, consider `/batch <instruction>` instead: it decomposes the work into isolated worktrees and runs each unit in parallel.
+
 ## 2. After all phases
 
 1. Have `devkit:tester` run in `run` mode, then `gaps` mode for new behavior without tests.
