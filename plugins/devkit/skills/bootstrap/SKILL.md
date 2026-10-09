@@ -70,7 +70,7 @@ Then present the **BOOTSTRAP PLAN**: a table of every file to create or modify, 
 
 - If the project has a web UI: copy `templates/agents/ui-verifier.md` to `.claude/agents/` (this agent needs an inline MCP server, so it must live in the project — plugin agents can't declare one).
 - `.mcp.json`: only servers the user approved in step 2, following `templates/mcp.json.example`; credentials via environment variables. Remind the user to run `/mcp` to sign in with OAuth.
-- `.claude/skills/verify/SKILL.md` from `templates/skills/verify/SKILL.md`: record the build, run, and check recipe that actually worked in step 3 or was discovered in step 1. A skill named `verify` makes Claude run it before every commit.
+- Run `/run-skill-generator` so Claude Code writes a project-specific `verify` (and `run`) skill that knows this project's actual build and launch commands. (Built-in since Claude Code v2.1.215; if unavailable, write `.claude/skills/verify/SKILL.md` manually with the build/run recipe from step 3.)
 - List (don't install) plugins worth adding for this stack, e.g. a TypeScript code intelligence plugin, with the install commands.
 
 ## Step 7 — Layer 4: Workflow & automation
