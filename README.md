@@ -1,6 +1,6 @@
 # claude-kit — a personal engineer kit for Claude Code
 
-The `nhat-kit` marketplace contains the **devkit 2.0.1** plugin: 14 commands, 8 subagents, 2 hooks, and 4-layer project templates. It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
+The `nhat-kit` marketplace contains the **devkit 2.0.1** plugin: 15 commands, 9 subagents, 2 hooks, and 4-layer project templates. It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
 
 ## Commands
 
@@ -19,10 +19,11 @@ The `nhat-kit` marketplace contains the **devkit 2.0.1** plugin: 14 commands, 8 
 | `/devkit:review [base\|#PR] [--fix]` | Review against the plan/SPEC | code-reviewer |
 | `/devkit:git cm\|cp\|pr\|sync` | Commit, push, open a PR | git-manager (Haiku) |
 | `/devkit:ship` | Final gate, then open a PR | 8 gates + code-reviewer + git-manager |
+| `/devkit:deploy [staging\|prod] [--dry-run]` | After a PR merges: deploy to staging then prod | deployer |
 | `/devkit:retro` | After a task where you had to correct Claude several times | — |
 | `/devkit:check` | Health-check a project's 4 layers | — |
 
-Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`, `review`, `scout`, `brainstorm`. These run only when you type them because they have side effects: `bootstrap`, `task`, `cook`, `git`, `ship`, `retro`, `check`.
+Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`, `review`, `scout`, `brainstorm`. These run only when you type them because they have side effects: `bootstrap`, `task`, `cook`, `git`, `ship`, `deploy`, `retro`, `check`.
 
 ## The 4 layers bootstrap sets up in each project
 

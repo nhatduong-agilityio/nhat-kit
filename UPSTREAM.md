@@ -43,7 +43,7 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 | code-simplifier | `/simplify` | ⊘ | |
 | security, security-scan | `/security-review` | ⊘ | |
 | skill-creator | `skill-creator` plugin | ⊘ | |
-| deploy (v2.14.0 upcoming) | — | ⏳ | P-5: `/devkit:deploy` post-merge multi-platform deploy |
+| deploy (v2.14.0 upcoming) | `/devkit:deploy` | ✅ | P-5 done: staging → prod, auto-detects platform, asks before prod |
 | llms (v2.14.0 upcoming) | — | ⏳ | P-6: `/devkit:llms` llms.txt generator |
 | project-organization (v2.14.0) | — | ⏳ | relates to bootstrap 4-layer setup |
 | backend-development | — | ⏳ | P-9: `/devkit:backend` server-side architecture skill |
