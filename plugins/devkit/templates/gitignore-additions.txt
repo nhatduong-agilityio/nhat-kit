@@ -1,0 +1,5 @@
+# Claude Code — personal files, never commit
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/current-task
+.claude/worktrees/

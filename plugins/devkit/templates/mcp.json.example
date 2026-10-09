@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "example-remote-http": {
+      "type": "http",
+      "url": "https://mcp.example.com/mcp"
+    },
+    "example-local-stdio": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "some-mcp-server@latest"],
+      "env": {
+        "API_TOKEN": "${EXAMPLE_API_TOKEN}"
+      }
+    }
+  }
+}

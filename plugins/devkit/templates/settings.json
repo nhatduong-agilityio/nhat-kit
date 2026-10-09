@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash({{LINT_CMD}})",
+      "Bash({{TYPECHECK_CMD}})",
+      "Bash({{TEST_ALL_CMD}})",
+      "Bash({{TEST_ONE_CMD}} *)",
+      "Bash({{FORMAT_CMD}} *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git switch -c *)",
+      "Bash(gh issue view *)",
+      "Bash(gh pr view *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr merge *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Edit(./{{GENERATED_DIR}}/**)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-on-edit.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/reinject-context.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
