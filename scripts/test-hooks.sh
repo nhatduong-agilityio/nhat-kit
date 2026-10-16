@@ -45,7 +45,51 @@ bash_cmd 2 'FOO=1 git push --force'
 bash_cmd 2 '(cd repo && git push -f)'
 bash_cmd 2 'git status
 git push --force'
+bash_cmd 2 $'git push --force\r'
+bash_cmd 2 'git push --mirror'
+bash_cmd 2 'git push --force-w'
+bash_cmd 2 'git push "--force"'
+bash_cmd 2 "git push origin '+main'"
+bash_cmd 2 'env FOO=1 git push -f'
+bash_cmd 2 'timeout 60 git push -f'
+bash_cmd 2 'sudo -u bob git push -f'
+bash_cmd 2 'if git push -f; then echo ok; fi'
+bash_cmd 2 'git --git-dir /r/.git push -f'
+bash_cmd 2 'git -C "my repo" push -f'
+bash_cmd 2 'echo `git push -f`'
+bash_cmd 2 'echo $(git push -f)'
+bash_cmd 2 'git push -vf origin feat 2>&1 | tail -3'
+bash_cmd 2 'cat <<EOF
+text
+EOF
+git push -f'
+bash_cmd 2 'git push origin \
+  -f'
 bash_cmd 0 'git push'
+bash_cmd 0 'git push origin \
+  main'
+bash_cmd 0 'git commit -m "feat: guard; git push --force is now blocked"'
+bash_cmd 0 "git commit -F - <<'EOF'
+feat: x
+
+git push --force is now blocked
+EOF"
+bash_cmd 0 'gh pr create --body "$(cat <<'"'"'EOF'"'"'
+  git push -f origin main
+EOF
+)"'
+bash_cmd 0 'cat <<-EOF
+	git push -f
+	EOF
+git status'
+bash_cmd 0 'echo "done && git push -f"'
+bash_cmd 0 'git push -otopic=feature origin feat'
+bash_cmd 0 'git push -o ci.skip origin feat'
+bash_cmd 0 'git push origin main # never use -f here'
+bash_cmd 0 'git push origin main 2>&1 | tail -3'
+bash_cmd 0 'git push origin main > push.log 2>&1'
+bash_cmd 0 'git push origin main 2> /tmp/f.log'
+bash_cmd 0 'cat <<< "git push -f"'
 bash_cmd 0 'git push -u origin feat'
 bash_cmd 0 'git push --follow-tags'
 bash_cmd 0 'git push origin main'
