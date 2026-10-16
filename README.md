@@ -33,7 +33,7 @@ Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`
 | 1. Config & permissions | Commands allowed freely, commands that ask, blocked files; format and context-restore hooks | `.claude/settings.json`, `.claude/hooks/*.sh`, `.gitignore` |
 | 2. Memory & context | Build/test commands, conventions, per-module rules, business brief | `CLAUDE.md`, `.claude/rules/*.md`, `docs/PROJECT_BRIEF.md`, `docs/architecture.md` |
 | 3. Extensions | Browser-based UI verifier, real-app verify skill, MCP integrations | `.claude/agents/ui-verifier.md`, `.claude/skills/verify/`, `.mcp.json` |
-| 4. Workflow | Backlog, task spec template, PR template | `docs/BACKLOG.md`, `docs/tasks/_TEMPLATE/SPEC.md`, `.github/pull_request_template.md` |
+| 4. Workflow | Backlog, task spec template, issue forms, PR template | `docs/BACKLOG.md`, `docs/tasks/_TEMPLATE/SPEC.md`, `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md` |
 
 ## Workflows
 
@@ -194,5 +194,5 @@ claude-kit/
     ├── agents/      9 subagents
     ├── hooks/hooks.json, scripts/
     ├── references/conventions.md
-    └── templates/   CLAUDE.md, settings.json, rules, hooks, agents, docs, PR
+    └── templates/   CLAUDE.md, settings.json, rules, hooks, agents, docs, issue forms, PR
 ```

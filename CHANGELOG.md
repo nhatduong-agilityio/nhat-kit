@@ -9,7 +9,12 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 - `block-force-push` hook: blocks `git push --force`/`-f`/`--force-with-lease`/`--force-if-includes`/`+refspec`/`--mirror` in every project; quote-, heredoc-, `$( )`- and comment-aware, so commit messages and PR bodies that mention force pushes are not blocked; normal pushes are untouched (P-18).
 - `/devkit:grill`: interviews the user in rounds (each question with a recommended answer), looks facts up instead of asking, and writes `plans/<…>/decisions.md` (P-17).
 - `/devkit:plan` treats a `decisions.md` as settled input; `/devkit:brainstorm` offers `/devkit:grill` when details are still open.
+- GitHub issue forms (`bug.yml`, `feature.yml`, `config.yml`) in `templates/github/ISSUE_TEMPLATE/`: required where/steps/expected/actual/severity for bugs and testable Given/When/Then criteria for features; `/devkit:bootstrap` copies them and fills the Area dropdown (P-21).
 - `upstream/proposals/20261016.md`: review of the team-practices deck, proposals P-17–P-25.
+
+### Changed
+
+- PR template: `Closes #`, a pasted "How it was verified" section, Screenshots / GIF for UI changes, and a one-concern-per-PR check; `git-manager` writes `Closes #N` when the task came from an issue (P-21).
 
 ### Fixed
 
