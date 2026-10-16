@@ -1,5 +1,5 @@
 # Grill before planning
-Status: in-progress · Source: P-17 in `upstream/proposals/20261016.md`
+Status: done · Source: P-17 in `upstream/proposals/20261016.md`
 
 ## Goal
 `/devkit:grill <idea>` interviews the user in rounds until no assumption about the idea is left unstated. It writes the decisions to `plans/<YYYYMMDD>-<slug>/decisions.md`, and `/devkit:plan` takes them as settled input. Today `plan` and `brainstorm` each stop after 3 questions, so unasked questions become silent assumptions in the plan.
@@ -59,7 +59,7 @@ Rejected alternatives:
   - `claude plugin validate plugins/devkit --strict && claude plugin validate .` passes.
 
 ### Phase 4: Real run (manual, because `AskUserQuestion` needs an interactive session)
-- [ ] The user runs `claude --plugin-dir plugins/devkit` in a scratch repo and then `/devkit:grill add a dark-mode toggle to the settings page`.
+- [x] The user runs `claude --plugin-dir plugins/devkit` in a scratch repo and then `/devkit:grill add a dark-mode toggle to the settings page`.
 - Verify:
   - The first message states facts it looked up instead of asking them.
   - Each round has at most 4 questions, each with a "(Recommended)" option.
