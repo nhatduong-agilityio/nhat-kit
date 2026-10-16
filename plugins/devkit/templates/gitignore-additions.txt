@@ -3,3 +3,7 @@ CLAUDE.local.md
 .claude/settings.local.json
 .claude/current-task
 .claude/worktrees/
+
+# devkit UI evidence (published as an artifact, not committed)
+**/evidence/
+.playwright-mcp/
