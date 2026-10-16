@@ -1,9 +1,9 @@
 ---
 name: task
 description: Take a task from the BA (text, file, GitHub issue, Jira key, or link) through spec → plan → code → verify → review → PR, following the project's standards.
-argument-hint: "<task text | file path | #issue | JIRA-123 | URL>"
+argument-hint: "<task text | file path | #issue | next | JIRA-123 | URL>"
 disable-model-invocation: true
-allowed-tools: Bash(git status *) Bash(git diff *) Bash(git log *) Bash(gh issue view *) Bash(gh pr view *)
+allowed-tools: Bash(git status *) Bash(git diff *) Bash(git log *) Bash(gh issue view *) Bash(gh issue list *) Bash(gh pr view *)
 ---
 
 # BA task → PR
@@ -12,11 +12,13 @@ Input: `$ARGUMENTS`
 
 Spec template: the project's `docs/tasks/_TEMPLATE/SPEC.md`; if missing, use `${CLAUDE_PLUGIN_ROOT}/templates/docs/tasks/_TEMPLATE/SPEC.md` and suggest the user run `/devkit:bootstrap`.
 
-Conventions: `${CLAUDE_PLUGIN_ROOT}/references/conventions.md`. Use a task list for the 8 steps below.
+Conventions: `${CLAUDE_PLUGIN_ROOT}/references/conventions.md` (GitHub issues: its **GitHub issue queue** section). Use a task list for the 8 steps below.
 
 ## 1. Intake — get the task content
 
+- `next` → pick from the queue: `gh issue list --label ai --state open --limit 100 --json number,title,labels,createdAt`, drop issues labelled `in-progress`, sort by severity (`critical`, `high`, `medium`, `low`, none) then oldest. Show the top 3 with `AskUserQuestion`, the first recommended; the choice confirms the claim. An empty queue → say so and stop.
 - `#123` or a GitHub issue URL → `gh issue view`.
+- **Claim** any GitHub issue before step 2, per the conventions. If it is labelled `in-progress`, show the latest claim (host, time) and stop unless the user says to take it over. Otherwise add `in-progress`, post the claim comment, re-read the comments with `gh issue view`, and release and stop if an earlier claim from another host wins. From here on, any stop without a PR means **Release** (end of this skill).
 - A key like `ABC-123`, or a Jira/Linear/Notion URL → use the matching MCP tool if connected; if not, say which connector is needed and ask the user to paste the content.
 - A file path (PDF, MD, image) → read the file. Plain text → use it verbatim.
 - Set `TASK_ID` (the ticket key, or `T-<yyyymmdd>-<slug>` if there is none) and a short `slug`.
@@ -31,7 +33,7 @@ Write the spec path to `.claude/current-task` (one line) so the hook can restore
 
 Have the `devkit:requirements-analyst` subagent check the SPEC against `docs/PROJECT_BRIEF.md`, `CLAUDE.md`, and the current code: ambiguous ACs, conflicts with existing behavior, missing edge cases (empty, network failure, permissions, i18n, accessibility, mobile).
 
-- **Blocking** questions (can't be done correctly without an answer) → stop, draft a ready-to-send message to the BA (bullets, each with a proposed answer), save it under "Open questions" in the SPEC, and wait for the user.
+- **Blocking** questions (can't be done correctly without an answer) → stop, draft a ready-to-send message to the BA (bullets, each with a proposed answer), save it under "Open questions" in the SPEC, and wait for the user. If the user won't continue in this session, **Release** the issue.
 - **Non-blocking** questions → record the chosen assumption in the SPEC and continue.
 
 ## 4. Plan
@@ -66,3 +68,7 @@ If on the main branch, create a branch following the convention in CLAUDE.md (de
 - Update the item's status in `docs/BACKLOG.md` if present.
 - Delete `.claude/current-task`.
 - End with: the PR link, which ACs still rest on assumptions the BA must confirm, and a suggestion to run `/devkit:retro` if the user had to correct Claude's direction during the task.
+
+## Release (GitHub issues only)
+
+Whenever the task stops without a PR (a blocking question, the user stops it, it can't be done): remove `in-progress`, post the release comment (reason, what was done so far), and leave the issue open with its `ai` label. Never close it; it closes when the PR with `Closes #N` merges.
