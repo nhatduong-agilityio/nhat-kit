@@ -76,7 +76,7 @@ Used by `/devkit:ship` (gate 5), `/devkit:task` (step 7), and the `ui-verifier` 
   - the commit SHA it was taken at.
 
   It is private until the user shares it.
-- **PR**: the *Screenshots / GIF* section gets `[UI evidence](<url>) (private — shared on request)`. The final reply reminds the user to share the artifact with the reviewers from its Share menu.
+- **PR**: the caller always passes `git-manager` one value: the artifact link, the file list, or `none (no UI change)`. The *Screenshots / GIF* section gets `[UI evidence](<url>) (private — shared on request)`. The final reply reminds the user to share the artifact with the reviewers from its Share menu.
 - **Fallback**:
   - No Artifact tool: list the evidence file paths in that section and ask the user to drag the key images into the PR on GitHub.
   - No browser at all: say so and use the `verify` skill's output as the evidence.

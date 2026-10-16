@@ -64,7 +64,7 @@ If on the main branch, create a branch following the convention in CLAUDE.md (de
 
 - Update the SPEC: mark each AC as met with its evidence; record the assumptions used.
 - Commit through the `devkit:git-manager` subagent (operation `commit`, `Refs: <TASK_ID>`).
-- **Ask before pushing.** Then have `devkit:git-manager` run `push` and `pr` using `.github/pull_request_template.md`: summary, AC → evidence table, the evidence artifact link (or fallback file list) under *Screenshots / GIF*, risks, manual test steps, ticket link.
+- **Ask before pushing.** Then have `devkit:git-manager` run `push` and `pr` using `.github/pull_request_template.md`: summary, AC → evidence table, under *Screenshots / GIF* always one value: the evidence artifact link, the fallback file list, or `none (no UI change)`, risks, manual test steps, ticket link.
 - Update the item's status in `docs/BACKLOG.md` if present.
 - Delete `.claude/current-task`.
 - End with: the PR link, a reminder to share the evidence artifact with the reviewers if one was published, which ACs still rest on assumptions the BA must confirm, and a suggestion to run `/devkit:retro` if the user had to correct Claude's direction during the task.
