@@ -70,6 +70,34 @@ Body: why the change was made; reference the task/issue (`Refs: PROJ-123`). One 
 
 Before committing: no secrets (keys, tokens, passwords, `.env`), no temporary debug files, no `console.log`/`print` added for debugging.
 
+## GitHub issue queue
+
+Used by `/devkit:issue` (files) and `/devkit:task` (`next`, claim, release).
+
+| Label | Meaning | Color |
+| --- | --- | --- |
+| `ai` | In the AI work queue | `5319e7` |
+| `bug` / `enhancement` | Kind (GitHub defaults) | — |
+| `severity:critical` · `severity:high` · `severity:medium` · `severity:low` | Impact; `next` picks in this order | `b60205` · `d93f0b` · `fbca04` · `c2e0c6` |
+| `area:<name>` | Part of the project; names come from the Area list in `.github/ISSUE_TEMPLATE/bug.yml`, or ask | `0e8a16` |
+| `in-progress` | Claimed by one machine | `1d76db` |
+
+Create a missing label once, after the user confirms: `gh label create <name> --color <hex> --description "<meaning>"`. Never rename or delete existing labels.
+
+Comments (first line exactly as shown, so they can be found with a search):
+
+```text
+🔒 devkit claim · host: <hostname -s> · task: <TASK_ID> · <ISO-8601 UTC time>
+🔓 devkit release · host: <hostname -s> · reason: <why> · done so far: <one line, or "nothing">
+```
+
+Rules:
+- Claim before writing the SPEC: add `in-progress`, post the claim comment, then re-read the comments. If another host's claim comment is newer than the last release and older than yours, the earlier claim wins: release yours and stop.
+- An issue labelled `in-progress` belongs to the host in its latest claim. Take it over only when the user says so, and say so in your own claim comment.
+- `gh issue list` can lag a few seconds behind changes. Read a single issue's labels and comments with `gh issue view` (no lag), and treat the duplicate check as best effort.
+- Never close a queue issue by hand. It closes when the PR with `Closes #N` merges.
+- Whenever the work stops without a PR (a blocking question, the user stops, it can't be done), release: remove `in-progress` and post the release comment. Leave the issue open with its `ai` label, so it goes back to the queue.
+
 ## Agent hand-off contract
 
 Every agent ends with this block — short, without repeating file contents:

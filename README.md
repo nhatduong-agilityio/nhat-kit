@@ -1,14 +1,15 @@
 # claude-kit — a personal engineer kit for Claude Code
 
-The `nhat-kit` marketplace contains the **devkit 2.1.0** plugin: 16 commands, 9 subagents, 3 hooks (`protect-files`, `block-force-push`, `notify`), and 4-layer project templates. It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
+The `nhat-kit` marketplace contains the **devkit 2.1.0** plugin: 17 commands, 9 subagents, 3 hooks (`protect-files`, `block-force-push`, `notify`), and 4-layer project templates. It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
 
 ## Commands
 
 | Command | Use when | Orchestrates |
 | --- | --- | --- |
 | `/devkit:bootstrap <docs>` | Starting a project, or bringing Claude into an existing repo | requirements-analyst, Explore |
-| `/devkit:task <ticket>` | The BA assigns a task: SPEC with ACs → PR with evidence | requirements-analyst, tester, fullstack-developer, code-reviewer, git-manager |
+| `/devkit:task <ticket \| #issue \| next>` | The BA assigns a task, or you take the next issue from the queue: claim → SPEC with ACs → PR with evidence (releases the issue if it stops) | requirements-analyst, tester, fullstack-developer, code-reviewer, git-manager |
 | `/devkit:brainstorm <problem>` | You don't know which direction to take | researcher, Explore |
+| `/devkit:issue <bug\|feature> [text \| findings.md]` | File a GitHub issue a stranger can act on: every field pinned down, duplicate check, labelled `ai` + severity + area | Explore |
 | `/devkit:grill <idea>` | The direction is set but details are open; rounds of questions until nothing is assumed → `decisions.md` | Explore, researcher |
 | `/devkit:plan <request> [--fast\|--hard]` | The change touches many files or the approach is unclear | Explore, researcher, planner, red-team |
 | `/devkit:plan red-team <plan.md>` | Challenge an existing plan | 2 adversarial reviewers |
@@ -24,7 +25,7 @@ The `nhat-kit` marketplace contains the **devkit 2.1.0** plugin: 16 commands, 9 
 | `/devkit:retro` | After a task where you had to correct Claude several times | — |
 | `/devkit:check` | Health-check a project's 4 layers | — |
 
-Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`, `review`, `scout`, `brainstorm`. These run only when you type them, because they have side effects or run a long interview: `bootstrap`, `task`, `cook`, `git`, `ship`, `deploy`, `retro`, `check`, `grill`.
+Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`, `review`, `scout`, `brainstorm`. These run only when you type them, because they have side effects or run a long interview: `bootstrap`, `task`, `cook`, `git`, `ship`, `deploy`, `retro`, `check`, `grill`, `issue`.
 
 ## The 4 layers bootstrap sets up in each project
 
@@ -40,6 +41,7 @@ Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`
 ```text
 New project:     /devkit:bootstrap docs/srs.pdf
 BA task:         /devkit:task PROJ-381            (end to end, up to the PR)
+Issue queue:     /devkit:issue bug → /devkit:task next → PR with Closes #N
 Own feature:     /devkit:brainstorm → /devkit:grill → /devkit:plan → /devkit:cook → /devkit:ship
 Something broke: /devkit:fix  (hard ones: /devkit:debug first)
 Periodically:    /devkit:retro, /devkit:check
@@ -190,7 +192,7 @@ claude-kit/
 ├── user-setup/{settings.json,CLAUDE.md}
 └── plugins/devkit/
     ├── .claude-plugin/plugin.json
-    ├── skills/      16 commands
+    ├── skills/      17 commands
     ├── agents/      9 subagents
     ├── hooks/hooks.json, scripts/
     ├── references/conventions.md

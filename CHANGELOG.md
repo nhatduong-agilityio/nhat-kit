@@ -10,10 +10,12 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 - `/devkit:grill`: interviews the user in rounds (each question with a recommended answer), looks facts up instead of asking, and writes `plans/<…>/decisions.md` (P-17).
 - `/devkit:plan` treats a `decisions.md` as settled input; `/devkit:brainstorm` offers `/devkit:grill` when details are still open.
 - GitHub issue forms (`bug.yml`, `feature.yml`, `config.yml`) in `templates/github/ISSUE_TEMPLATE/`: required where/steps/expected/actual/severity for bugs and testable Given/When/Then criteria for features; `/devkit:bootstrap` copies them and fills the Area dropdown (P-21).
+- `/devkit:issue`: files a GitHub issue only once every required field is set, checks for duplicates, and labels it for the AI queue (`ai`, `severity:*`, `area:*`, creating missing labels after confirmation); can file confirmed findings from a review report (P-20).
 - `upstream/proposals/20261016.md`: review of the team-practices deck, proposals P-17–P-25.
 
 ### Changed
 
+- `/devkit:task`: `next` picks the highest-severity unclaimed `ai` issue; GitHub issues are claimed (`in-progress` label + claim comment, re-read to catch races) and released with a comment when the task stops without a PR; conventions gain a "GitHub issue queue" section (P-20).
 - PR template: `Closes #`, a pasted "How it was verified" section, Screenshots / GIF for UI changes, and a one-concern-per-PR check; `git-manager` writes `Closes #N` when the task came from an issue (P-21).
 
 ### Fixed
