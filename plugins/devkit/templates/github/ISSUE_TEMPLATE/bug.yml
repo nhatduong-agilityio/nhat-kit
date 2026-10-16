@@ -1,0 +1,70 @@
+name: Bug report
+description: Something is broken. Describe what you saw, not what you think the cause is.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Write it so someone who has never seen this part of the app can reproduce it. Title: the symptom ("Save button does nothing on /settings"), not a guess ("state bug").
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: File and line, screen, or URL where it happens.
+      placeholder: src/settings/SaveButton.tsx:42 — or — Settings › Profile — or — https://staging.example.com/settings
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Sign in as a regular user
+        2. Open Settings › Profile
+        3. Change the display name and click Save
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+      placeholder: The name is saved and a "Saved" toast appears.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+      placeholder: 'Nothing happens; the console shows "TypeError: … undefined".'
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - critical — data loss, security, or the app is unusable
+        - high — a main flow is broken, no workaround
+        - medium — broken with a workaround
+        - low — cosmetic or minor
+    validations:
+      required: true
+  # TEMPLATE: replace {{AREAS}} with one "- <module>" line per project area; delete this field if the project has no clear areas.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - {{AREAS}}
+  - type: input
+    id: environment
+    attributes:
+      label: Environment and version
+      placeholder: staging, build 1.4.2, Chrome 131, macOS
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs, screenshots, or recordings
+      description: Paste logs as text; drag screenshots or a GIF here.
+      render: text

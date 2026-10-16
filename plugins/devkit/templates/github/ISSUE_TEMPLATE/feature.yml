@@ -1,0 +1,45 @@
+name: Feature request
+description: A new capability or a change in behavior, with criteria someone can test.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or need
+      description: Who needs this and why. Describe the problem, not the solution.
+      placeholder: Support agents can't see a customer's last 5 orders without leaving the ticket.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: What should happen, from the user's point of view.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Testable, one per line, as Given / When / Then.
+      placeholder: |
+        AC1 Given an open ticket, when the agent opens the Orders tab, then the 5 newest orders are listed newest first.
+        AC2 Given a customer with no orders, when the agent opens the Orders tab, then "No orders yet" is shown.
+    validations:
+      required: true
+  # TEMPLATE: replace {{AREAS}} with one "- <module>" line per project area; delete this field if the project has no clear areas.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - {{AREAS}}
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+  - type: input
+    id: design
+    attributes:
+      label: Design or spec link

@@ -111,7 +111,7 @@ Practices from another team's seven-week report, used as an idea source. See `up
 | Hooks over reminders (never force-push) | `block-force-push` hook | ✅ | P-18 |
 | Opus advises, Sonnet builds, Haiku runs | agent `model:` | ⏳ | P-19: per-role model tiers |
 | GitHub issues as AI work queue (file, claim, fix, release) | `/devkit:task #N` | ◐ | P-20: `/devkit:issue` + claim/release |
-| Issues/PRs a stranger can act on | `pull_request_template.md` | ◐ | P-21: issue forms + PR evidence fields |
+| Issues/PRs a stranger can act on | `ISSUE_TEMPLATE/` forms + `pull_request_template.md` | ✅ | P-21 |
 | Verification evidence as an artifact (screenshots, GIF) | — | ⏳ | P-22 |
 | Living CLAUDE.md; rules in files skills read | `templates/CLAUDE.md` | ◐ | P-23 |
 | Personal memory for repeated corrections | `retro` | ◐ | P-24 |
