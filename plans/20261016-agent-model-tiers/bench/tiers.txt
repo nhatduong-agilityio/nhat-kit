@@ -1,0 +1,2 @@
+tiers-1: exit 0 · cost $1.27 · [opus=$1.06, sonnet=$0.21] · 289s · turns 28 · heldout pass=18 fail=0 · own tests pass=34 fail=0 · is_error False
+tiers-2: exit 0 · cost $1.26 · [opus=$0.99, sonnet=$0.27] · 246s · turns 34 · heldout pass=18 fail=0 · own tests pass=37 fail=0 · is_error False

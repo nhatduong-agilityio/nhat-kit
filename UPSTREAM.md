@@ -109,7 +109,7 @@ Practices from another team's seven-week report, used as an idea source. See `up
 | --- | --- | --- | --- |
 | Grill-before-plan question rounds | `/devkit:grill` | ✅ | P-17 |
 | Hooks over reminders (never force-push) | `block-force-push` hook | ✅ | P-18 |
-| Opus advises, Sonnet builds, Haiku runs | agent `model:` | ⏳ | P-19: per-role model tiers |
+| Opus advises, Sonnet builds, Haiku runs | agent `model:` tiers | ✅ | P-19: −30% median cook cost, same held-out results |
 | GitHub issues as AI work queue (file, claim, fix, release) | `/devkit:issue` + `/devkit:task #N\|next` | ✅ | P-20 |
 | Issues/PRs a stranger can act on | `ISSUE_TEMPLATE/` forms + `pull_request_template.md` | ✅ | P-21 |
 | Verification evidence as an artifact (screenshots, GIF) | — | ⏳ | P-22 |

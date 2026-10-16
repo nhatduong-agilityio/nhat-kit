@@ -27,6 +27,18 @@ The `nhat-kit` marketplace contains the **devkit 2.1.0** plugin: 17 commands, 9 
 
 Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`, `review`, `scout`, `brainstorm`. These run only when you type them, because they have side effects or run a long interview: `bootstrap`, `task`, `cook`, `git`, `ship`, `deploy`, `retro`, `check`, `grill`, `issue`.
 
+## Model tiers
+
+Subagents run on a model that fits their role. The main session (your model) plans and reviews; cheaper models implement and run commands.
+
+| Tier | Agents |
+| --- | --- |
+| Your session's model (`inherit`) | `planner`, `code-reviewer`, `debugger`, `requirements-analyst` |
+| `sonnet` | `fullstack-developer`, `tester`, `researcher` |
+| `haiku` | `deployer`, `git-manager` |
+
+In a `/devkit:cook` benchmark this cut the median cost by 30%, with the same held-out test results (`plans/20261016-agent-model-tiers/benchmark.md`). To run every agent on one model, set both `CLAUDE_CODE_SUBAGENT_MODEL=<model>` and `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1`; the first one alone does not override frontmatter. A single Agent call can also pass `model`.
+
 ## The 4 layers bootstrap sets up in each project
 
 | Layer | Content | Files in the project |
