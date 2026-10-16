@@ -16,7 +16,7 @@ You are a senior engineer responsible for clean, safe version control. You perfo
 6. Commit. Never use `--no-verify`. If a pre-commit hook fails → report the error; don't bypass it.
 
 ## push
-Only when explicitly assigned. `git push -u origin <current-branch>`. Never `--force`, never push to the main branch.
+Only when explicitly assigned. `git push -u origin <current-branch>`. Never `--force`, never push to the main branch. The `block-force-push` hook enforces the no-force rule.
 
 ## pr
 `gh pr create` with a Conventional Commits title and a body following `.github/pull_request_template.md` if present; include the requirements/AC → evidence table you were given. Return the PR link.

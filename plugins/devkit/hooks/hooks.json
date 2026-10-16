@@ -9,6 +9,15 @@
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/protect-files.sh"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/block-force-push.sh"
+          }
+        ]
       }
     ],
     "Notification": [

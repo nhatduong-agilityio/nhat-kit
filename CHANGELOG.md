@@ -6,6 +6,7 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ### Added
 
+- `block-force-push` hook: blocks `git push --force`/`-f`/`--force-with-lease`/`--force-if-includes`/`+refspec` in every project; normal pushes are untouched (P-18).
 - `upstream/proposals/20261016.md`: review of the team-practices deck, proposals P-17–P-25.
 
 ### Fixed
