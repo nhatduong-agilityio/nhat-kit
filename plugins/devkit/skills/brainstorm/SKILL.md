@@ -15,4 +15,4 @@ Do not write or edit code in this skill.
 3. **Offer 2–4 genuinely different directions**, including at least the simplest possible one and a "don't build it" option. Compare in a table: complexity, risk, maintenance cost, time, extensibility, impact on other parts.
 4. **Challenge yourself**: for the direction you favor, state what could make it fail.
 5. **Recommend** one direction, with the reason and the conditions under which you'd change your mind.
-6. Ask the user to choose. Once chosen: save a summary to `plans/<YYYYMMDD>-<slug>/brainstorm.md` (in English) and suggest `/devkit:plan plans/<...>/brainstorm.md`.
+6. Ask the user to choose. Once chosen: save a summary to `plans/<YYYYMMDD>-<slug>/brainstorm.md` (in English) and suggest `/devkit:plan plans/<...>/brainstorm.md` — or `/devkit:grill plans/<...>/brainstorm.md` first when many details are still open (it writes `decisions.md`).

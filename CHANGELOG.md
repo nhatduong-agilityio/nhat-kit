@@ -7,6 +7,8 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 ### Added
 
 - `block-force-push` hook: blocks `git push --force`/`-f`/`--force-with-lease`/`--force-if-includes`/`+refspec`/`--mirror` in every project; quote-, heredoc-, `$( )`- and comment-aware, so commit messages and PR bodies that mention force pushes are not blocked; normal pushes are untouched (P-18).
+- `/devkit:grill`: interviews the user in rounds (each question with a recommended answer), looks facts up instead of asking, and writes `plans/<…>/decisions.md` (P-17).
+- `/devkit:plan` treats a `decisions.md` as settled input; `/devkit:brainstorm` offers `/devkit:grill` when details are still open.
 - `upstream/proposals/20261016.md`: review of the team-practices deck, proposals P-17–P-25.
 
 ### Fixed
