@@ -65,7 +65,40 @@ EOF
 git push -f'
 bash_cmd 2 'git push origin \
   -f'
+bash_cmd 2 'cat <<< "x"
+git push -f'
+bash_cmd 2 'grep a <<<"$out"
+git push -f origin main'
+bash_cmd 2 'gh pr create --title "x" --body "$(cat <<'"'"'EOF'"'"'
+Handle 5" displays
+EOF
+)" && git push -f'
+bash_cmd 2 'git commit -m "$(echo x)" && git push --force'
+bash_cmd 2 'echo $'"'"'it\'"'"'s'"'"' && git push -f'
+bash_cmd 2 'echo $((1 << 2))
+git push -f'
+bash_cmd 2 'git push --mirr'
+bash_cmd 2 'time -p git push -f'
+bash_cmd 2 'x=$(git push -f 2>&1)'
+bash_cmd 2 '(cd repo; (git push -f))'
 bash_cmd 0 'git push'
+bash_cmd 0 'git commit -m "$(cat <<'"'"'EOF'"'"'
+docs: support 12" screens
+
+git push --force is blocked now
+EOF
+)"'
+bash_cmd 0 'git commit -m "$(cat <<'"'"'EOF'"'"'
+fix: don'"'"'t hide errors
+
+Never run git push -f here.
+EOF
+)" && git push -u origin feat'
+bash_cmd 0 "cat <<	EOF
+git push -f
+EOF"
+bash_cmd 0 'n=$((1 << 2)); git push origin main'
+bash_cmd 0 'git push "$(git remote | head -1)" "$(git branch --show-current)"'
 bash_cmd 0 'git push origin \
   main'
 bash_cmd 0 'git commit -m "feat: guard; git push --force is now blocked"'
