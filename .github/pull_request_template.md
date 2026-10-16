@@ -16,7 +16,7 @@ Refs: <!-- ticket, spec, or plan -->
 ```
 
 ## Screenshots / GIF
-<!-- UI changes only: before and after, or a GIF of the flow. Delete otherwise. -->
+<!-- UI change: [UI evidence](<artifact link>) (private — shared on request), or the screenshot files. No UI change: None (no UI change). -->
 
 ## Manual test steps
 1. 

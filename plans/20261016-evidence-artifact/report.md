@@ -1,7 +1,7 @@
 # Report: Evidence as an artifact
 
 ## Result
-- Status: done (one item open: the PR line, see Phase 5)
+- Status: done
 - Done:
   - Conventions: a "UI evidence" section covering the folder, file names, GIF via Claude in Chrome, a no-secrets rule, the artifact content (main session only), the PR line "(private — shared on request)", the reminder to share, and fallbacks
   - `ui-verifier` template: saves `AC<n>-<state>.png` into the evidence folder using the screenshot `filename`, returns the paths, never publishes, and stops at once with a clear trust message when it has no browser tools
@@ -26,5 +26,16 @@ Full findings are in `research/flow.md`.
 - **The skill flow published the artifact itself:** [T-1 UI evidence](https://claude.ai/artifact/6wvG4Nvd79LoVfhJakmCbE), private.
   - Per AC: criterion, a Pass label, observation and inline screenshot; console and network (favicon 404); commit SHA; "Test data only".
 - **Reminder to share:** the final message said "It's private, so share it with the reviewers from its Share menu when you open the PR."
-- **Not checked:** the PR *Screenshots / GIF* line "(private — shared on request)". The run covered step 7 only; `git-manager` writes that line at step 8.
+- **PR line (AC6), checked afterwards:** a headless dry-run of `git-manager` operation `pr` in the fixture (no commit, push or `gh`).
+  - **First run failed:** it pasted the bare link, deleted the section when given nothing (the template said "Delete otherwise"), and ticked "tests pass" with no evidence.
+  - **Fixes:**
+    - `git-manager`'s PR step now has explicit rules: keep every section, use the exact lines, use only what the caller passed, and tick only boxes it has evidence for;
+    - the template comment, in both the plugin's and this repo's copy, no longer says "Delete otherwise";
+    - `ship` and `task` now always pass one value: the link, the file list, or `none (no UI change)`. Haiku still searched the evidence folder when given nothing.
+  - **Final runs**, with the request forwarded word for word:
+    - link → `[UI evidence](https://claude.ai/artifact/6wvG4Nvd79LoVfhJakmCbE) (private — shared on request)`
+    - files → the file lines plus "Drag these images into the PR on GitHub."
+    - `none (no UI change)` → `None (no UI change)`
+    - "tests pass" was left unticked when no tests ran.
+  - An earlier run looked like a failure, but its main session had told `git-manager` to "discover what you need from the repo yourself". That was a test harness mistake, not a kit bug.
 - **Follow-up from that run's review:** screenshot paths are now absolute in the conventions and `ui-verifier`. Relative paths worked in all three runs, but they depend on where the browser server resolves them.
