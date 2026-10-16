@@ -107,7 +107,7 @@ Practices from another team's seven-week report, used as an idea source. See `up
 
 | Practice | devkit | Status | Notes |
 | --- | --- | --- | --- |
-| Grill-before-plan question rounds | — | ⏳ | P-17: `/devkit:grill` |
+| Grill-before-plan question rounds | `/devkit:grill` | ✅ | P-17 |
 | Hooks over reminders (never force-push) | `block-force-push` hook | ✅ | P-18 |
 | Opus advises, Sonnet builds, Haiku runs | agent `model:` | ⏳ | P-19: per-role model tiers |
 | GitHub issues as AI work queue (file, claim, fix, release) | `/devkit:task #N` | ◐ | P-20: `/devkit:issue` + claim/release |

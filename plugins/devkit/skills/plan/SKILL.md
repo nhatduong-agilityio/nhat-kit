@@ -19,7 +19,7 @@ Conventions (plan format, folders, hand-off contract): `${CLAUDE_PLUGIN_ROOT}/re
 
 ## 1. Understand the request and scout
 
-- If the input is a SPEC, its ACs are the definition of done. If the request is vague, ask at most 3 questions with `AskUserQuestion` (only questions that change the plan).
+- If the input is a SPEC, its ACs are the definition of done. If it is a `decisions.md` from `/devkit:grill`, its decisions are settled: ask only about something new that scouting reveals. If the request is vague, ask at most 3 questions with `AskUserQuestion` (only questions that change the plan).
 - Create the folder `plans/<YYYYMMDD>-<slug>/`.
 - Run 1–3 `Explore` subagents in parallel, each from one angle (entry points and data flow; similar existing patterns; related tests and config). Ask for a `path:line` map, not file dumps.
 
