@@ -6,10 +6,10 @@ devkit is written entirely from scratch. ClaudeKit serves only as an **idea sour
 
 | Item | Value |
 | --- | --- |
-| Last reviewed | 2026-10-09 (second pass) |
+| Last reviewed | 2026-10-16 (ClaudeKit unchanged; team-practices deck added as a source) |
 | Latest ClaudeKit release in the public changelog | v2.13.0 (2026-02-25); v2.14.0 upcoming (deploy ✅, llms, project-organization, 3-tier evals, expert-persona ✅, security-scan, ship ✅, retro ✅) |
-| llms.txt reviewed | https://docs.claudekit.cc/llms.txt — 2026-10-09 |
-| Claude Code commands reference | code.claude.com/docs/en/commands — reviewed 2026-10-09 |
+| llms.txt reviewed | https://docs.claudekit.cc/llms.txt — 2026-10-16 |
+| Claude Code commands reference | code.claude.com/docs/en/commands — reviewed 2026-10-16 |
 | Matching devkit version | 2.1.0 |
 
 ## Feature table
@@ -96,6 +96,30 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 | `/slides` | slide-deck creation | ⊘ |
 | `/doctor prompt-audit` | re-added to `check` with v2.1.283+ caveat | ✅ P-8 (2.1.0) |
 | `/import` | migrate from Cursor/Codex/Gemini | ⊘ |
+| `/verify` | `task`/`ship` verification step; P-22 adds artifact evidence | ⊘ |
+| `/background`, `/rename`, `/resume`, `/remote-control` | long-lived sessions; replaces tmux launcher scripts | ⊘ |
+| `/fork`, `/subtask` | background research copies | ⊘ |
+| `/team-onboarding`, `/insights` | usage-history reports; P-24 may feed `/insights` into `retro` | ⊘ |
+
+### Team-practices deck (Oct 2026, reviewed 2026-10-16)
+
+Practices from another team's seven-week report, used as an idea source. See `upstream/proposals/20261016.md`.
+
+| Practice | devkit | Status | Notes |
+| --- | --- | --- | --- |
+| Grill-before-plan question rounds | — | ⏳ | P-17: `/devkit:grill` |
+| Hooks over reminders (never force-push) | — | ⏳ | P-18: `block-force-push.sh` |
+| Opus advises, Sonnet builds, Haiku runs | agent `model:` | ⏳ | P-19: per-role model tiers |
+| GitHub issues as AI work queue (file, claim, fix, release) | `/devkit:task #N` | ◐ | P-20: `/devkit:issue` + claim/release |
+| Issues/PRs a stranger can act on | `pull_request_template.md` | ◐ | P-21: issue forms + PR evidence fields |
+| Verification evidence as an artifact (screenshots, GIF) | — | ⏳ | P-22 |
+| Living CLAUDE.md; rules in files skills read | `templates/CLAUDE.md` | ◐ | P-23 |
+| Personal memory for repeated corrections | `retro` | ◐ | P-24 |
+| Markdown plan ↔ tracker two-way sync | — | ⏳ | P-25 |
+| Subagents for searching | `/devkit:scout` | ✅ | |
+| Plan mode as the gate | `/devkit:plan`, `/plan` | ✅ | |
+| Connectors (Slack, Drive, Gmail, Trello, Calendar) | `mcp.json.example` | ✗ | per-user setup |
+| docx/pptx deliverables, timesheets, ADO sync | — | ✗ | domain-specific |
 
 ### devkit only
 
@@ -108,3 +132,4 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 | 2026-10-09 | v2.13.0 | Initial table | devkit 2.0.0 |
 | 2026-10-09 | v2.13.0 / v2.14.0 upcoming | P-1–P-11 proposed; P-12/P-13 skipped; P-1–P-8, P-11 applied | devkit 2.1.0 |
 | 2026-10-09 | v2.14.0 upcoming; llms.txt | Second pass: P-14 (security-scan), P-15 (hook diagnostics); see upstream/proposals/20261009b.md | — |
+| 2026-10-16 | v2.13.0 / v2.14.0 still upcoming | ClaudeKit unchanged; team-practices deck → P-17–P-25; see upstream/proposals/20261016.md | — |

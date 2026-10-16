@@ -4,6 +4,10 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ## [Unreleased]
 
+### Added
+
+- `upstream/proposals/20261016.md`: review of the team-practices deck, proposals P-17–P-25.
+
 ### Fixed
 
 - `README.md`: added "Getting started" section with step-by-step flows for new (greenfield) and existing projects; updated version badge to 2.1.0; corrected repo layout counts to 15 commands / 9 subagents.
