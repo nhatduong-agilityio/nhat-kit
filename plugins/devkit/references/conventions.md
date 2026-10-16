@@ -62,6 +62,25 @@ Never report "done" without evidence. Valid evidence:
 
 "Looks right" and "should work" are not evidence.
 
+### UI evidence
+
+Used by `/devkit:ship` (gate 5), `/devkit:task` (step 7), and the `ui-verifier` agent whenever a change is visible in the UI.
+
+- **Folder**: `evidence/` next to the plan or SPEC (`plans/<…>/evidence/`, `docs/tasks/<ID>-<slug>/evidence/`). It is gitignored (`**/evidence/`), and so is Playwright's `.playwright-mcp/`.
+- **Files**: `AC<n>-<state>.png` (a screenshot per AC state; `before-`/`after-` prefix when comparing; `-mobile` suffix for the 390×844 viewport) and `<flow>.gif` for a multi-step flow. Pass the **absolute** path (`$(pwd)/…/evidence/AC1-saved.png`) as the screenshot tool's `filename`; a relative path depends on where the browser server resolves it.
+- **GIF**: only when Claude in Chrome is available in the main session (`/claude-in-chrome`, with its GIF recording). Playwright gives screenshots only.
+- **Content**: use test accounts and test data. Don't capture screens that show secrets, tokens, or real personal data; skip them and say why.
+- **Artifact** (main session only; subagents and headless runs don't have the Artifact tool): publish one page titled `<ID or slug> UI evidence`. Pass the images as `files`, referenced by relative path. The page shows:
+  - per AC: the criterion, Pass/Fail, a one-line observation, and its screenshot or GIF;
+  - console and network errors, if any;
+  - the commit SHA it was taken at.
+
+  It is private until the user shares it.
+- **PR**: the *Screenshots / GIF* section gets `[UI evidence](<url>) (private — shared on request)`. The final reply reminds the user to share the artifact with the reviewers from its Share menu.
+- **Fallback**:
+  - No Artifact tool: list the evidence file paths in that section and ask the user to drag the key images into the PR on GitHub.
+  - No browser at all: say so and use the `verify` skill's output as the evidence.
+
 ## Commits
 
 Conventional Commits: `<type>(<scope>): <imperative summary, ≤ 72 chars>`.

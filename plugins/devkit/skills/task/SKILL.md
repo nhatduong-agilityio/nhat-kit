@@ -56,7 +56,7 @@ If on the main branch, create a branch following the convention in CLAUDE.md (de
 ## 7. Verify and review
 
 - Run the project's `verify` skill (if any) or `/verify`.
-- UI changes: have the `ui-verifier` subagent (if the project has one) check each AC in a browser, with screenshots.
+- UI changes: collect UI evidence per the conventions' "UI evidence" section. Have the `ui-verifier` subagent (if the project has one) check each AC in a browser and save screenshots to `docs/tasks/<TASK_ID>-<slug>/evidence/`. If there is no `ui-verifier`, or it reports no browser tools, do the same yourself with the browser tools you have (Playwright MCP or `/claude-in-chrome`). Then publish the evidence artifact yourself, or record the fallback.
 - Have the `devkit:code-reviewer` subagent review the diff against the SPEC. Fix only findings that affect correctness or ACs; list the rest as optional.
 - Repeat until every AC has evidence (test output, command and result, screenshot).
 
@@ -64,10 +64,10 @@ If on the main branch, create a branch following the convention in CLAUDE.md (de
 
 - Update the SPEC: mark each AC as met with its evidence; record the assumptions used.
 - Commit through the `devkit:git-manager` subagent (operation `commit`, `Refs: <TASK_ID>`).
-- **Ask before pushing.** Then have `devkit:git-manager` run `push` and `pr` using `.github/pull_request_template.md`: summary, AC → evidence table, risks, manual test steps, ticket link.
+- **Ask before pushing.** Then have `devkit:git-manager` run `push` and `pr` using `.github/pull_request_template.md`: summary, AC → evidence table, the evidence artifact link (or fallback file list) under *Screenshots / GIF*, risks, manual test steps, ticket link.
 - Update the item's status in `docs/BACKLOG.md` if present.
 - Delete `.claude/current-task`.
-- End with: the PR link, which ACs still rest on assumptions the BA must confirm, and a suggestion to run `/devkit:retro` if the user had to correct Claude's direction during the task.
+- End with: the PR link, a reminder to share the evidence artifact with the reviewers if one was published, which ACs still rest on assumptions the BA must confirm, and a suggestion to run `/devkit:retro` if the user had to correct Claude's direction during the task.
 
 ## Release (GitHub issues only)
 

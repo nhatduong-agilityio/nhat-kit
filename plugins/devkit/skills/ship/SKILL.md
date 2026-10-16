@@ -15,9 +15,9 @@ Conventions: `${CLAUDE_PLUGIN_ROOT}/references/conventions.md`. The plugin folde
 2. **Static**: typecheck, lint, format check per `CLAUDE.md`.
 3. **Tests**: the full suite (or CI's test command if it's in `.github/workflows`).
 4. **Build**: the production build command.
-5. **Real app**: the project's `verify` skill if present; UI → the `ui-verifier` agent if present.
+5. **Real app**: the project's `verify` skill if present. If the change is visible in the UI, collect UI evidence per the conventions' "UI evidence" section: the `ui-verifier` agent if present (if it is missing or reports no browser tools, drive the app yourself with Playwright MCP, or use `/claude-in-chrome` when a GIF of a multi-step flow helps), then publish the evidence artifact yourself, or record the fallback.
 6. **Review**: the `devkit:code-reviewer` subagent with the target document. Any Critical left → stop.
 7. **Docs**: user-visible behavior, API, or config changed → update the related README/docs; if the repo has `CHANGELOG.md` → add an entry under "Unreleased".
-8. **Deliver**: follow the `/devkit:git pr` procedure (read `${CLAUDE_PLUGIN_ROOT}/skills/git/SKILL.md`). Ask for confirmation before pushing. After the PR opens, suggest `/autofix-pr` so Claude Code watches CI failures and review comments and pushes fixes automatically.
+8. **Deliver**: follow the `/devkit:git pr` procedure (read `${CLAUDE_PLUGIN_ROOT}/skills/git/SKILL.md`), passing the evidence link (or the fallback file list) for the PR's *Screenshots / GIF* section. Ask for confirmation before pushing. After the PR opens, suggest `/autofix-pr` so Claude Code watches CI failures and review comments and pushes fixes automatically.
 
-Reply with: a table of the 8 gates (passed / failed / skipped with reason) and the PR link.
+Reply with: a table of the 8 gates (passed / failed / skipped with reason), the PR link, and, if an evidence artifact was published, a reminder that it is private until you share it with the reviewers.

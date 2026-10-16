@@ -96,7 +96,7 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 | `/slides` | slide-deck creation | ⊘ |
 | `/doctor prompt-audit` | re-added to `check` with v2.1.283+ caveat | ✅ P-8 (2.1.0) |
 | `/import` | migrate from Cursor/Codex/Gemini | ⊘ |
-| `/verify` | `task`/`ship` verification step; P-22 adds artifact evidence | ⊘ |
+| `/verify` | `task`/`ship` verification step; UI evidence published as an artifact (P-22) | ⊘ |
 | `/background`, `/rename`, `/resume`, `/remote-control` | long-lived sessions; replaces tmux launcher scripts | ⊘ |
 | `/fork`, `/subtask` | background research copies | ⊘ |
 | `/team-onboarding`, `/insights` | usage-history reports; P-24 may feed `/insights` into `retro` | ⊘ |
@@ -112,7 +112,7 @@ Practices from another team's seven-week report, used as an idea source. See `up
 | Opus advises, Sonnet builds, Haiku runs | agent `model:` tiers | ✅ | P-19: −30% median cook cost, same held-out results |
 | GitHub issues as AI work queue (file, claim, fix, release) | `/devkit:issue` + `/devkit:task #N\|next` | ✅ | P-20 |
 | Issues/PRs a stranger can act on | `ISSUE_TEMPLATE/` forms + `pull_request_template.md` | ✅ | P-21 |
-| Verification evidence as an artifact (screenshots, GIF) | — | ⏳ | P-22 |
+| Verification evidence as an artifact (screenshots, GIF) | `ship` gate 5 / `task` step 7 + `ui-verifier` | ✅ | P-22 |
 | Living CLAUDE.md; rules in files skills read | `templates/CLAUDE.md` | ◐ | P-23 |
 | Personal memory for repeated corrections | `retro` | ◐ | P-24 |
 | Markdown plan ↔ tracker two-way sync | — | ⏳ | P-25 |
