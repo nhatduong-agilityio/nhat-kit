@@ -16,6 +16,7 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 ### Changed
 
 - `/devkit:task`: `next` picks the highest-severity unclaimed `ai` issue; GitHub issues are claimed (`in-progress` label + claim comment, re-read to catch races) and released with a comment when the task stops without a PR; conventions gain a "GitHub issue queue" section (P-20).
+- Agent model tiers: `fullstack-developer`, `tester` and `researcher` run on `sonnet`, and `deployer` on `haiku`; the judgment roles keep `inherit`. A `/devkit:cook` benchmark showed −30% median cost ($1.82 → $1.27) with 18/18 held-out tests on both sides. `cook` now has the main session read each phase's diff before moving on. Override with `CLAUDE_CODE_SUBAGENT_MODEL` + `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` (P-19).
 - PR template: `Closes #`, a pasted "How it was verified" section, Screenshots / GIF for UI changes, and a one-concern-per-PR check; `git-manager` writes `Closes #N` when the task came from an issue (P-21).
 
 ### Fixed

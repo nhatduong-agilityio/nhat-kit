@@ -23,7 +23,7 @@ Conventions: `${CLAUDE_PLUGIN_ROOT}/references/conventions.md` — pass this pat
 
 1. **Tests first** (skip with `--no-tdd`, or for phases without checkable behavior such as config or pure refactors): have `devkit:tester` run in `write-first` mode for this phase.
 2. **Implement**: give this phase to `devkit:fullstack-developer`, with the list of files it owns, the plan path, and the tests just written.
-3. **Check**: run the phase's verify command yourself. Red → send it back to the developer with the failing output (at most twice); still red → delegate to `devkit:debugger`, then fix at the root cause.
+3. **Check**: run the phase's verify command yourself. Red → send it back to the developer with the failing output (at most twice); still red → delegate to `devkit:debugger`, then fix at the root cause. Green → read the phase's diff (`git diff`) yourself against the plan before moving on; the developer and tester run on a cheaper model, so you are the reviewer for each phase.
 4. Post a one-line progress update for the user; tick the phase in the plan.
 
 Independent phases that share no files may run in parallel with multiple `fullstack-developer` subagents. Do this only when the plan states they are independent.
