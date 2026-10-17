@@ -7,3 +7,6 @@ CLAUDE.local.md
 # devkit UI evidence (published as an artifact, not committed)
 **/evidence/
 .playwright-mcp/
+
+# devkit security scan reports
+security-scan/
