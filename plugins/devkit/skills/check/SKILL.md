@@ -19,6 +19,7 @@ Read only; change nothing. Return one table: Layer · Item · Status (OK / Missi
 - Whether any of the last 10 commits that touched a convention-changing file (`package.json` scripts, lint/format config, CI config, `.claude/rules/*.md`) also touched `CLAUDE.md`. Report: Status = Needs fix with the commit SHA(s) and one-line subject(s) that changed a convention without a matching `CLAUDE.md` commit; Status = OK if every such commit also touched `CLAUDE.md`, or if there were fewer than 10 commits total. N (10) is a fixed default in this patch, not user-configurable.
 - `docs/PROJECT_BRIEF.md` exists; `.claude/rules/*.md` have `paths:` pointing to folders that still exist.
 - `CLAUDE.local.md` and `.claude/settings.local.json` are in `.gitignore`.
+- Auto memory: whether the project's own memory directory under `~/.claude/projects/` has a `MEMORY.md` that exists and is non-empty. Status = OK if present with content. Otherwise, never report "Needs fix" — this is optional infrastructure, a project can be perfectly healthy without using it — report it informationally with a one-line note: "auto memory unused for this project — `retro` can start writing to it."
 
 **Layer 3 — Extensions**
 - `.claude/skills/verify/SKILL.md` exists and its run recipe is still correct.
