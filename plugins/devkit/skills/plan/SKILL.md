@@ -1,7 +1,7 @@
 ---
 name: plan
 description: Create a phased implementation plan for a feature or change (scout the codebase, research when needed, red-team the plan) and save it under plans/. Use before coding changes that touch many files or whose approach is unclear.
-argument-hint: "<request | SPEC.md> [--fast | --hard] | red-team <plan.md>"
+argument-hint: "<request | SPEC.md> [--fast | --hard] | red-team <plan.md> | sync <plan.md>"
 ---
 
 # Plan
@@ -13,6 +13,7 @@ Conventions (plan format, folders, hand-off contract): `${CLAUDE_PLUGIN_ROOT}/re
 ## Pick a mode
 
 - `red-team <plan.md>` → run only step 5 on an existing plan.
+- `sync <plan.md>` → run only step 7 (below) on an existing plan.
 - `--fast`: small, clear change → skip step 2, light scouting.
 - `--hard`: new architecture, many modules, unfamiliar technology → parallel research + mandatory red-team.
 - No flag: choose by complexity; state the chosen mode in one line.
@@ -49,3 +50,21 @@ Apply the valid findings to the plan; record rejected findings and why at the en
 - If the plan has any High or Critical risk, suggest enabling `/advisor fable` for the cook phase so a second model gives guidance at key moments.
 - **Wait for the user's approval.** On approval: set `Status: approved` and write the plan path to `.claude/current-task`.
 - Next step: `/devkit:cook plans/<...>/plan.md`.
+
+## 7. Sync (plan ↔ tracker)
+
+Per the conventions' "Plan ↔ tracker sync" section.
+
+- Refuse and say why if `Status: draft` — sync works on `approved`, `in-progress`, or `done` only.
+- Check `gh auth status` and that the repo has a GitHub remote first. If either fails, say so and stop — never silently skip push or pull.
+- **Pull first.** For each phase heading with a valid `(#N)` suffix — exactly one trailing `(#<digits>)` token; warn and skip a heading with more than one, or a malformed one, rather than guessing:
+  - Run `gh issue view N --json state`.
+  - `CLOSED` → tick every remaining unchecked box under that phase.
+  - `OPEN` → leave it untouched; never un-tick a box.
+  - A failed lookup (404, wrong repo, revoked access) skips that phase without aborting the rest of the run, and is reported as a broken link.
+- **Push second.** For each phase heading with no suffix:
+  - First run `gh issue list --search "<exact deterministic title>"` for an existing issue titled `<plan title>: Phase N — <phase name>` (crash-safety: a push that created the issue but died before writing `(#N)` back must not create a duplicate on retry).
+  - A match: re-link it by appending `(#<number>)` to the heading.
+  - No match: create one — write the body (checklist items + Verify line + a link back to the plan file path) to a temp file and pass it with `--body-file`, never inline `--body`, since phase content routinely has backticked paths — then append `(#<issue-number>)` to the heading.
+  - If every checkbox under the phase was already `- [x]` before creating or re-linking its issue, close the issue right after.
+- **Report**: phases pushed (new issue numbers), phases re-linked to an existing issue instead of creating a new one, phases pulled (newly ticked boxes), phases already up to date, and phases with a broken or malformed link needing manual attention.

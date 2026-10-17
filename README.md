@@ -13,6 +13,7 @@ The `nhat-kit` marketplace contains the **devkit 2.1.0** plugin: 17 commands, 9 
 | `/devkit:grill <idea>` | The direction is set but details are open; rounds of questions until nothing is assumed → `decisions.md` | Explore, researcher |
 | `/devkit:plan <request> [--fast\|--hard]` | The change touches many files or the approach is unclear | Explore, researcher, planner, red-team |
 | `/devkit:plan red-team <plan.md>` | Challenge an existing plan | 2 adversarial reviewers |
+| `/devkit:plan sync <plan.md>` | Push unsynced phases as issues, pull closed ones back | — |
 | `/devkit:cook <plan.md\|request>` | Implement end to end, phase by phase | tester → fullstack-developer → code-reviewer |
 | `/devkit:scout <topic>` | You need a quick code map | 2–6 parallel Explore agents |
 | `/devkit:fix <error>` | A specific error, failing test, build/type error | debugger when needed |
