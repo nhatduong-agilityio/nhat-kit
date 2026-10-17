@@ -4,22 +4,9 @@
 Closes #
 Refs: <!-- ticket, spec, or plan -->
 
-## Acceptance criteria
-| AC | Status | Evidence |
-| --- | --- | --- |
-| AC1 | ✅ / ⚠️ assumption | |
-
-## How it was verified
-<!-- The commands you ran and their key output, pasted — not "tests pass". -->
-```text
-
-```
-
-## Screenshots / GIF
-<!-- UI change: [UI evidence](<artifact link>) (private — shared on request), or the screenshot files. No UI change: None (no UI change). -->
-
-## Manual test steps
-1. 
+## Full report
+<!-- [PR report](<artifact link>) (private — shared on request) -->
+<!-- no Artifact tool: inline Acceptance criteria / How it was verified / Screenshots-GIF / Manual test steps here — see conventions.md "PR report artifact" -->
 
 ## Risks and impact
 <!-- Other modules affected, migrations, feature flags, rollback -->

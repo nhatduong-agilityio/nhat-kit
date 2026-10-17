@@ -64,24 +64,33 @@ Never report "done" without evidence. Valid evidence:
 
 "Looks right" and "should work" are not evidence.
 
-### UI evidence
+### PR report artifact
 
-Used by `/devkit:ship` (gate 5), `/devkit:task` (step 7), and the `ui-verifier` agent whenever a change is visible in the UI.
+Used by `/devkit:ship` (gates 5/8), `/devkit:task` (steps 7/8), and `/devkit:git pr` — for every PR, not only ones visible in the UI.
+
+- **Builder & timing**: **Artifact** (main session only; subagents and headless runs don't have the Artifact tool). The orchestrating skill builds and publishes the whole report before delegating to `git-manager`; `git-manager` never calls the Artifact tool itself.
+- **Title**: `<ID or slug> PR report`.
+- **Contents**:
+  - Summary — the same What/Why as the PR body.
+  - Acceptance criteria → evidence table, one row per AC, status shown as ✅ met / ⚠️ assumption / ❌ failed.
+  - A one-line "X/Y ACs met" summary near the top.
+  - How it was verified — command + output, long output collapsed in a `<details>` block, scrubbed per **Content (scrubbing)** below.
+  - Screenshots/GIF — the per-AC screenshots/GIF when the change is UI-visible (see **Screenshots and GIF** below), or the literal placeholder `None (no UI change)` otherwise. Never a silently omitted heading.
+  - Manual test steps.
+  - Risks and impact.
+  - The commit SHA.
+- **Content (scrubbing)**: use test accounts and test data; don't paste a screenshot, a verification-output line, or a commit SHA that exposes a secret, token, internal path, or real personal data as-is — redact or omit it and say why. This scrubbing rule covers the whole report, not only screenshots.
+- **Visualization**: ✅/⚠️/❌ status per AC row, the "X/Y ACs met" line, and `<details>` for long blocks — not charts or a charting library. Whoever builds this artifact for real should follow the `artifact-design` skill's own guidance for structuring an Artifact page.
+- **PR body**: slims to `## Summary` (1-3 sentences) → `Closes #` / `Refs:` → `## Full report` (one line: the artifact link, covering the Acceptance-criteria table, How-it-was-verified output, Screenshots/GIF, and Manual test steps) → `## Risks and impact` (stays its own inline section — not moved into the artifact) → `## Checklist`. `Closes #N` must stay written in the literal PR body: GitHub only parses its auto-close keywords from the PR description itself, never from a linked artifact page.
+- **Fallback (no Artifact tool)**: applies to the whole report, not just screenshots. Don't slim the body: alongside the always-inline `## Risks and impact`, also write the full Acceptance-criteria table, How it was verified, Screenshots/GIF, and Manual test steps inline — same shape as before this change.
+
+#### Screenshots and GIF (UI-visible changes)
 
 - **Folder**: `evidence/` next to the plan or SPEC (`plans/<…>/evidence/`, `docs/tasks/<ID>-<slug>/evidence/`). It is gitignored (`**/evidence/`), and so is Playwright's `.playwright-mcp/`.
 - **Files**: `AC<n>-<state>.png` (a screenshot per AC state; `before-`/`after-` prefix when comparing; `-mobile` suffix for the 390×844 viewport) and `<flow>.gif` for a multi-step flow. Pass the **absolute** path (`$(pwd)/…/evidence/AC1-saved.png`) as the screenshot tool's `filename`; a relative path depends on where the browser server resolves it.
 - **GIF**: only when Claude in Chrome is available in the main session (`/claude-in-chrome`, with its GIF recording). Playwright gives screenshots only.
 - **Content**: use test accounts and test data. Don't capture screens that show secrets, tokens, or real personal data; skip them and say why.
-- **Artifact** (main session only; subagents and headless runs don't have the Artifact tool): publish one page titled `<ID or slug> UI evidence`. Pass the images as `files`, referenced by relative path. The page shows:
-  - per AC: the criterion, Pass/Fail, a one-line observation, and its screenshot or GIF;
-  - console and network errors, if any;
-  - the commit SHA it was taken at.
-
-  It is private until the user shares it.
-- **PR**: the caller always passes `git-manager` one value: the artifact link, the file list, or `none (no UI change)`. The *Screenshots / GIF* section gets `[UI evidence](<url>) (private — shared on request)`. The final reply reminds the user to share the artifact with the reviewers from its Share menu.
-- **Fallback**:
-  - No Artifact tool: list the evidence file paths in that section and ask the user to drag the key images into the PR on GitHub.
-  - No browser at all: say so and use the `verify` skill's output as the evidence.
+- **No browser at all**: say so and use the `verify` skill's output as the evidence.
 
 ## Commits
 

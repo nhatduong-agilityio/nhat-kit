@@ -16,7 +16,7 @@ The user invokes this command directly, so `cp` and `pr` count as consent to pus
 
 - `cm` → have the `devkit:git-manager` subagent run `commit`. Pass the target document (`.claude/current-task`) so it can add `Refs:`.
 - `cp` → `commit`, then `push`.
-- `pr [base]` → `commit`, `push`, then `pr`. Build the PR body from the plan's `report.md` or the SPEC's "Completion evidence" section (requirements/AC → evidence table), risks, and manual test steps. The default base is the main branch.
+- `pr [base]` → `commit`, `push`, then `pr`. Build and publish the report artifact from the plan's `report.md` or the SPEC's "Completion evidence" section, per the conventions' "PR report artifact" section; also prepare the condensed checklist summary and the Risks-and-impact text. Then pass `git-manager` the artifact link, checklist summary, and risks text for the slim body, or, with no Artifact tool, the full content for the fallback inline body. The default base is the main branch.
 - `sync` → `git fetch`, report how far the current branch is ahead/behind the base and whether conflicts are likely (`git merge-tree`); propose a rebase or merge, and do it only with the user's approval.
 
 Reply with: commits created (hash + message), branch, PR link. If git-manager stops because of a secret, show the file and line and don't retry.
