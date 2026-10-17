@@ -45,7 +45,7 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 | security | `/security-review` | ⊘ | branch-diff code-logic review |
 | skill-creator | `skill-creator` plugin | ⊘ | |
 | deploy (v2.14.0 upcoming) | `/devkit:deploy` | ✅ | P-5 done: staging → prod, auto-detects platform, asks before prod |
-| llms (v2.14.0 upcoming) | `/devkit:llms` | ✅ | P-6: one-pass llms.txt generator; absolute links, public-only filter |
+| llms (v2.14.0 upcoming) | — | ✗ | P-6: built in PR #13, then removed before release (2026-10-17): the user's projects rarely publish a library, API, or docs site |
 | security-scan (v2.14.0 upcoming) | `/devkit:security-scan` + agent `security-scanner` | ✅ | P-14: whole-project deps/secrets/sensitive files/sink candidates; deep logic review via built-in `/security-review` |
 | project-organization (v2.14.0) | — | ⏳ | relates to bootstrap 4-layer setup |
 | backend-development | — | ⏳ | P-9: `/devkit:backend` server-side architecture skill |

@@ -16,7 +16,6 @@ All artifacts are written in English: code, comments, commit messages, plans, sp
 | `plans/<YYYYMMDD>-<slug>/report.md` | Implementation result and evidence | `/devkit:cook` |
 | `docs/tasks/<TASK_ID>-<slug>/SPEC.md` | Spec for a BA task (with ACs) | `/devkit:task` |
 | `docs/PROJECT_BRIEF.md`, `docs/BACKLOG.md` | Project context | `/devkit:bootstrap` |
-| `llms.txt` (project root or given path) | Public LLM index of the project's docs | `/devkit:llms` |
 | `security-scan/<YYYYMMDD-HHMM>.md` | Redacted whole-project security scan (gitignored) | `/devkit:security-scan`, agent `security-scanner` |
 | `.claude/current-task` | Path of the plan or SPEC in progress (one line) | the running skill; deleted when done |
 

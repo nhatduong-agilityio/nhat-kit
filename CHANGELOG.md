@@ -6,12 +6,11 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ### Added
 
-- `/devkit:llms`: generates or refreshes a spec-shaped `llms.txt` (H1, summary, link sections, `## Optional`) from tracked docs, API specs, and manifest entry points; every link is absolute (docs site, else `raw.githubusercontent.com` for a GitHub origin), private hosts, `.env*`, and draft pages are left out, and an existing file is only overwritten after a diff and confirmation (P-6).
-
-- `/devkit:security-scan` and the `security-scanner` agent (sonnet, read-only): a whole-project scan. The deterministic part runs in `scripts/scan-secrets.sh` (one allowable command; `--check <rule> <path>` re-checks a row by count): secret patterns in the tracked tree (POSIX regex rules with a self-test, values masked to 4 chars before they reach context) and sensitive tracked files (the `protect-files` hook is the oracle). The agent adds dependency advisories through already-installed audit tools that don't run repo code (`npm`/`pnpm`/`yarn` classic audit, `cargo audit --file`, else `osv-scanner -L`, else `not run`), and grep-guided risky-sink candidates. The skill re-checks critical rows and writes a redacted, gitignored `security-scan/<YYYYMMDD-HHMM>.md` and points to `/security-review` for the branch diff and `gitleaks git` for history (P-14).
+- `/devkit:security-scan` and the `security-scanner` agent (sonnet, read-only): a whole-project scan. The deterministic part runs in the plugin's `scripts/scan-secrets.sh` (one allowable command): secret patterns in the tracked tree (POSIX regex rules with a self-test, values masked to 4 chars before they reach context), sensitive tracked files (the `protect-files` hook is the oracle), and not-ignored `.env` files; `--sinks` lists risky code sinks as `path:line` + rule name only, skipping flagged files; `--check <rule> <path>` re-checks a row by count. The agent adds dependency advisories through already-installed audit tools that don't run repo code (`npm`/`pnpm`/`yarn` classic audit, `cargo audit --file`, else `osv-scanner -L`, else `not run`) and reads ±5 lines around each sink to keep plausible review candidates. The skill re-checks critical rows and writes a redacted, gitignored `security-scan/<YYYYMMDD-HHMM>.md` and points to `/security-review` for the branch diff and `gitleaks git` for history (P-14).
 
 ### Changed
 
+- `/devkit:review` and `/devkit:check` point to `/devkit:security-scan` for a whole-project scan; conventions gain a Directories row for `security-scan/`; `templates/gitignore-additions.txt` ignores `security-scan/`.
 - `scripts/test-hooks.sh` prints one fixed-width row per case (result, hook, case, expected/got exit, ms, first stderr line on failure) and a footer with case, failure, and total-time counts; timing uses bash's `time` keyword so it works on macOS `/bin/bash` 3.2; exit semantics are unchanged (P-15).
 
 ## [2.2.0] - 2026-10-17

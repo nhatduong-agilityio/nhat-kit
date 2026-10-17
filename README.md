@@ -1,6 +1,6 @@
 # claude-kit — a personal engineer kit for Claude Code
 
-The `nhat-kit` marketplace contains the **devkit 2.2.0** plugin: 19 commands, 10 subagents, 3 hooks (`protect-files`, `block-force-push`, `notify`), and 4-layer project templates. It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
+The `nhat-kit` marketplace contains the **devkit 2.2.0** plugin: 18 commands, 10 subagents, 3 hooks (`protect-files`, `block-force-push`, `notify`), and 4-layer project templates. It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
 
 ## Commands
 
@@ -26,9 +26,8 @@ The `nhat-kit` marketplace contains the **devkit 2.2.0** plugin: 19 commands, 10
 | `/devkit:retro` | After a task where you had to correct Claude several times | — |
 | `/devkit:check` | Health-check a project's 4 layers | — |
 | `/devkit:security-scan` | Whole-project scan: leaked secrets, vulnerable dependencies (installed audit tools only), sensitive tracked files, risky code sinks → redacted report; `/security-review` covers the branch diff | security-scanner |
-| `/devkit:llms [path]` | Publishing a library, API, or docs site: generate or refresh its `llms.txt` | — |
 
-Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`, `review`, `scout`, `brainstorm`. These run only when you type them, because they have side effects or run a long interview: `bootstrap`, `task`, `cook`, `git`, `ship`, `deploy`, `retro`, `check`, `grill`, `issue`, `security-scan`, `llms`.
+Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`, `review`, `scout`, `brainstorm`. These run only when you type them, because they have side effects or run a long interview: `bootstrap`, `task`, `cook`, `git`, `ship`, `deploy`, `retro`, `check`, `grill`, `issue`, `security-scan`.
 
 ## Model tiers
 
@@ -207,7 +206,7 @@ claude-kit/
 ├── user-setup/{settings.json,CLAUDE.md}
 └── plugins/devkit/
     ├── .claude-plugin/plugin.json
-    ├── skills/      19 commands
+    ├── skills/      18 commands
     ├── agents/      10 subagents
     ├── hooks/hooks.json, scripts/
     ├── references/conventions.md
