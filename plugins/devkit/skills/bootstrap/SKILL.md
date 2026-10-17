@@ -62,6 +62,7 @@ Then present the **BOOTSTRAP PLAN**: a table of every file to create or modify, 
 ## Step 5 — Layer 2: Memory & context
 
 - `CLAUDE.md` from `templates/CLAUDE.md`, filled from the brief and the verified commands. Point to `docs/PROJECT_BRIEF.md` with a plain path, not an `@import` (imports load into every session), unless the brief is under 60 lines.
+- Fill "Remotes & never-push rules" from `git remote -v` and the branch protection the user confirms (which branch(es) are push-protected); restate that `block-force-push` already blocks every force-push. Leave "Removed / reversed" as the template's placeholder line until a decision is actually reversed — never invent an entry.
 - `.claude/rules/<domain>.md` for each module with its own conventions, each with `paths:` matching that module's folder. Start from `templates/rules/`; delete rules that merely restate language defaults.
 - `docs/architecture.md`: GREENFIELD records architecture decisions and why; EXISTING records a short module map.
 - An empty `CLAUDE.local.md` with a one-line explanation (already gitignored).

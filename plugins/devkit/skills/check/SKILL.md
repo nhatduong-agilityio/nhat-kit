@@ -16,6 +16,7 @@ Read only; change nothing. Return one table: Layer · Item · Status (OK / Missi
 
 **Layer 2 — Memory**
 - `CLAUDE.md` exists, is under 120 lines, and its commands match the real scripts.
+- Whether any of the last 10 commits that touched a convention-changing file (`package.json` scripts, lint/format config, CI config, `.claude/rules/*.md`) also touched `CLAUDE.md`. Report: Status = Needs fix with the commit SHA(s) and one-line subject(s) that changed a convention without a matching `CLAUDE.md` commit; Status = OK if every such commit also touched `CLAUDE.md`, or if there were fewer than 10 commits total. N (10) is a fixed default in this patch, not user-configurable.
 - `docs/PROJECT_BRIEF.md` exists; `.claude/rules/*.md` have `paths:` pointing to folders that still exist.
 - `CLAUDE.local.md` and `.claude/settings.local.json` are in `.gitignore`.
 
