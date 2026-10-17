@@ -17,4 +17,4 @@ Input: `$ARGUMENTS`
 5. Without `--fix`: present the report by severity.
    With `--fix`: fix Criticals and reasonable Warnings following the `/devkit:fix` procedure, re-run the related tests, and report what was fixed and what was skipped (with reasons).
 
-Note: the bundled `/code-review` hunts general bugs and `/security-review` focuses on security; this skill adds the check against the plan/SPEC and the project's rules.
+Note: the bundled `/code-review` hunts general bugs and `/security-review` focuses on security; this skill adds the check against the plan/SPEC and the project's rules. For a whole-project scan of dependencies, secrets, sensitive files, and risky sinks, run `/devkit:security-scan`.
