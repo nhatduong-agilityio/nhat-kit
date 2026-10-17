@@ -52,6 +52,8 @@ The chosen approach and why; one line per rejected alternative.
 
 Every phase must be self-verifiable: when it ends, a command produces pass/fail. Keep a phase under ~300 changed lines.
 
+A phase heading may carry a trailing issue-link suffix: exactly one `(#<digits>)`-shaped token — e.g. `### Phase 1 — <name> (#42)` — as the LAST thing on the heading line. It is written only by `/devkit:plan sync` itself, when it links that phase to a GitHub issue; a heading without it is simply unsynced. A heading carrying more than one such trailing token, or a malformed one, is not something sync acts on silently — it is reported instead.
+
 ## Evidence
 
 Never report "done" without evidence. Valid evidence:
@@ -116,6 +118,17 @@ Rules:
 - `gh issue list` can lag a few seconds behind changes. Read a single issue's labels and comments with `gh issue view` (no lag), and treat the duplicate check as best effort.
 - Never close a queue issue by hand. It closes when the PR with `Closes #N` merges.
 - Whenever the work stops without a PR (a blocking question, the user stops, it can't be done), release: remove `in-progress` and post the release comment. Leave the issue open with its `ai` label, so it goes back to the queue.
+
+## Plan ↔ tracker sync
+
+Used by `/devkit:plan sync <plan.md>`.
+
+- **Linkage**: no side file and no dedicated label. The `(#N)`-shaped suffix on the phase heading (see `plan.md format` above) is the only state that exists. A human finds a phase's issue on GitHub by its deterministic title: `<plan title>: Phase N — <phase name>`.
+- **Push**: for a phase with no heading suffix, first search `gh issue list --search "<exact title>"` for an existing issue with that exact deterministic title — this is what keeps a push that was interrupted after creating the issue but before writing `(#N)` back from double-creating on retry. A match gets re-linked by appending its number to the heading; otherwise create one, with its body (the phase's checklist items + its Verify line + a link back to the plan file path) written to a temp file and passed as `--body-file`, never inline `--body`, to avoid a shell-injection risk from backticked paths in phase content. A phase whose checkboxes are already all `- [x]` at push time gets its issue closed immediately after creation or re-linking.
+- **Pull**: for a synced phase, `gh issue view N --json state`. `CLOSED` ticks every remaining unchecked box under that phase; `OPEN` changes nothing. A failed lookup (404, wrong repo, revoked access) skips that phase without aborting the run, and is reported as a broken link needing manual attention — never retried silently.
+- **Ratchet rule**: pull only ever moves a phase toward done; it never un-ticks a checkbox because its linked issue is open — the plan's own completion state is the stronger signal.
+- Unlike a queue issue (above), a sync-created issue is meant to be closed by hand on purpose — there is no `Closes #N`-via-PR workflow for it — and that manual close is exactly what pull is watching for.
+- **Guard**: refuses to run on a `Status: draft` plan; works for `approved`, `in-progress`, `done`.
 
 ## Agent hand-off contract
 

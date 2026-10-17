@@ -115,7 +115,7 @@ Practices from another team's seven-week report, used as an idea source. See `up
 | Verification evidence as an artifact (screenshots, GIF) | `ship` gate 5 / `task` step 7 + `ui-verifier` | ✅ | P-22 |
 | Living CLAUDE.md; rules in files skills read | `templates/CLAUDE.md` | ✅ | P-23 |
 | Personal memory for repeated corrections | `retro` | ✅ | P-24 |
-| Markdown plan ↔ tracker two-way sync | — | ⏳ | P-25 |
+| Markdown plan ↔ tracker two-way sync | `/devkit:plan sync` | ✅ | P-25 |
 | Subagents for searching | `/devkit:scout` | ✅ | |
 | Plan mode as the gate | `/devkit:plan`, `/plan` | ✅ | |
 | Connectors (Slack, Drive, Gmail, Trello, Calendar) | `mcp.json.example` | ✗ | per-user setup |
