@@ -42,11 +42,11 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 | loop | `/loop` | ⊘ | |
 | team | agent teams / dynamic workflows | ⊘ | |
 | code-simplifier | `/simplify` | ⊘ | |
-| security, security-scan | `/security-review` | ⊘ | |
+| security | `/security-review` | ⊘ | branch-diff code-logic review |
 | skill-creator | `skill-creator` plugin | ⊘ | |
 | deploy (v2.14.0 upcoming) | `/devkit:deploy` | ✅ | P-5 done: staging → prod, auto-detects platform, asks before prod |
-| llms (v2.14.0 upcoming) | — | ⏳ | P-6: `/devkit:llms` llms.txt generator |
-| security-scan (v2.14.0 upcoming) | — | ⏳ | P-14: vulnerability scan, OWASP checks, secrets detection |
+| llms (v2.14.0 upcoming) | `/devkit:llms` | ✅ | P-6: one-pass llms.txt generator; absolute links, public-only filter |
+| security-scan (v2.14.0 upcoming) | `/devkit:security-scan` + agent `security-scanner` | ✅ | P-14: whole-project deps/secrets/sensitive files/sink candidates; deep logic review via built-in `/security-review` |
 | project-organization (v2.14.0) | — | ⏳ | relates to bootstrap 4-layer setup |
 | backend-development | — | ⏳ | P-9: `/devkit:backend` server-side architecture skill |
 | databases | — | ⏳ | P-10: `/devkit:db` or merged into P-9 |
@@ -64,6 +64,7 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 | Debugger | `debugger` | ✅ |
 | Code Reviewer | `code-reviewer` | ✅ |
 | Git Manager | `git-manager` | ✅ |
+| — (security-scan skill, v2.14.0 upcoming) | `security-scanner` | ✅ |
 | Brainstormer | `brainstorm` skill | ◐ |
 | Code Simplifier | `/simplify` | ⊘ |
 | Docs Manager | — | ⏳ |
@@ -78,7 +79,7 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 | CLI `ck init` / `ck update` | marketplace + `claude plugin update` | ✅ |
 | Protective hooks (scout-block, guards) | `protect-files`, `block-force-push` hooks | ◐ |
 | Quality gate hooks, diagnostics | — | ⏳ | P-7: extend test-hooks.sh with LLM-judge step |
-| Hook Diagnostics Dashboard (CLI v3.36.0 upcoming) | — | ⏳ | P-15: execution logs, timing, and error output from test-hooks.sh |
+| Hook Diagnostics Dashboard (CLI v3.36.0 upcoming) | `scripts/test-hooks.sh` | ✅ | P-15: per-case table (hook, case, exit, ms, first stderr line) in `scripts/test-hooks.sh` |
 | Statusline | — | ⏳ | |
 | 3-tier eval system (v2.14.0 upcoming) | — | ⏳ | P-7 covers the hooks layer |
 

@@ -1,6 +1,6 @@
 # claude-kit — a personal engineer kit for Claude Code
 
-The `nhat-kit` marketplace contains the **devkit 2.2.0** plugin: 17 commands, 9 subagents, 3 hooks (`protect-files`, `block-force-push`, `notify`), and 4-layer project templates. It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
+The `nhat-kit` marketplace contains the **devkit 2.2.0** plugin: 19 commands, 10 subagents, 3 hooks (`protect-files`, `block-force-push`, `notify`), and 4-layer project templates. It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
 
 ## Commands
 
@@ -25,8 +25,10 @@ The `nhat-kit` marketplace contains the **devkit 2.2.0** plugin: 17 commands, 9 
 | `/devkit:deploy [staging\|prod] [--dry-run]` | After a PR merges: deploy to staging then prod | deployer |
 | `/devkit:retro` | After a task where you had to correct Claude several times | — |
 | `/devkit:check` | Health-check a project's 4 layers | — |
+| `/devkit:security-scan` | Whole-project scan: leaked secrets, vulnerable dependencies (installed audit tools only), sensitive tracked files, risky code sinks → redacted report; `/security-review` covers the branch diff | security-scanner |
+| `/devkit:llms [path]` | Publishing a library, API, or docs site: generate or refresh its `llms.txt` | — |
 
-Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`, `review`, `scout`, `brainstorm`. These run only when you type them, because they have side effects or run a long interview: `bootstrap`, `task`, `cook`, `git`, `ship`, `deploy`, `retro`, `check`, `grill`, `issue`.
+Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`, `review`, `scout`, `brainstorm`. These run only when you type them, because they have side effects or run a long interview: `bootstrap`, `task`, `cook`, `git`, `ship`, `deploy`, `retro`, `check`, `grill`, `issue`, `security-scan`, `llms`.
 
 ## Model tiers
 
@@ -35,7 +37,7 @@ Subagents run on a model that fits their role. The main session (your model) pla
 | Tier | Agents |
 | --- | --- |
 | Your session's model (`inherit`) | `planner`, `code-reviewer`, `debugger`, `requirements-analyst` |
-| `sonnet` | `fullstack-developer`, `tester`, `researcher` |
+| `sonnet` | `fullstack-developer`, `tester`, `researcher`, `security-scanner` |
 | `haiku` | `deployer`, `git-manager` |
 
 In a `/devkit:cook` benchmark this cut the median cost by 30%, with the same held-out test results (`plans/20261016-agent-model-tiers/benchmark.md`). To run every agent on one model, set both `CLAUDE_CODE_SUBAGENT_MODEL=<model>` and `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1`; the first one alone does not override frontmatter. A single Agent call can also pass `model`.
@@ -205,8 +207,8 @@ claude-kit/
 ├── user-setup/{settings.json,CLAUDE.md}
 └── plugins/devkit/
     ├── .claude-plugin/plugin.json
-    ├── skills/      17 commands
-    ├── agents/      9 subagents
+    ├── skills/      19 commands
+    ├── agents/      10 subagents
     ├── hooks/hooks.json, scripts/
     ├── references/conventions.md
     └── templates/   CLAUDE.md, settings.json, rules, hooks, agents, docs, issue forms, PR
