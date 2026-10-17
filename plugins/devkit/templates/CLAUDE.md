@@ -36,6 +36,16 @@
 - Never push without approval
 - When compacting: keep the path of the SPEC/plan in progress, the list of modified files, and the test commands in use
 
+# Remotes & never-push rules
+- Remote: `{{REMOTE_NAME}}` → `{{REMOTE_URL}}`; protected branches: `{{PROTECTED_BRANCHES}}`
+- Force-push is blocked on every branch by the `block-force-push` hook; normal pushes still need the user's approval
+- {{OTHER_PUSH_RULE}}
+<!-- TEMPLATE: delete {{OTHER_PUSH_RULE}} if there is none -->
+
+# Removed / reversed
+<!-- TEMPLATE: one line per reversed decision, newest first; delete the example once something real is logged -->
+- {{DATE}} — removed/reversed {{THING}}: {{WHY}}
+
 # Gotchas
 <!-- TEMPLATE: environment quirks, required env vars, services that must run first. Delete this section if empty. -->
 - {{GOTCHA}}

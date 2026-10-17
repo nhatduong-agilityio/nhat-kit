@@ -137,3 +137,5 @@ Every agent ends with this block — short, without repeating file contents:
 - Fix root causes, not symptoms. Never disable tests or add `@ts-ignore`/`eslint-disable` to get a pass.
 - YAGNI: do exactly the assigned scope. Out-of-scope ideas go under "Open issues".
 - Ask before: pushing, opening/merging PRs, deleting files outside scope, running migrations, changing a public API.
+- A skill or agent that changes a project convention (a build/test command, a per-module rule in `.claude/rules/`, a workflow rule) updates that project's `CLAUDE.md` in the same commit. A convention change and a stale `CLAUDE.md` never ship separately.
+- A skill's changeable, project-tunable settings (label names, severity thresholds, area lists, and similar) belong in a project-level file the skill reads at run time, not hardcoded in the skill's own prompt. A user customizing the behavior edits that doc, not devkit's skill files. This is forward-looking guidance for new and changed skills; it does not require retrofitting existing skills (see Out of scope).
