@@ -7,7 +7,7 @@ The `nhat-kit` marketplace contains the **devkit 2.1.0** plugin: 17 commands, 9 
 | Command | Use when | Orchestrates |
 | --- | --- | --- |
 | `/devkit:bootstrap <docs>` | Starting a project, or bringing Claude into an existing repo | requirements-analyst, Explore |
-| `/devkit:task <ticket \| #issue \| next>` | The BA assigns a task, or you take the next issue from the queue: claim → SPEC with ACs → PR with evidence, including a UI evidence artifact for UI changes (releases the issue if it stops) | requirements-analyst, tester, fullstack-developer, code-reviewer, git-manager |
+| `/devkit:task <ticket \| #issue \| next>` | The BA assigns a task, or you take the next issue from the queue: claim → SPEC with ACs → PR with a published report artifact (AC evidence, verification, screenshots/GIF when UI-visible) (releases the issue if it stops) | requirements-analyst, tester, fullstack-developer, code-reviewer, git-manager |
 | `/devkit:brainstorm <problem>` | You don't know which direction to take | researcher, Explore |
 | `/devkit:issue <bug\|feature> [text \| findings.md]` | File a GitHub issue a stranger can act on: every field pinned down, duplicate check, labelled `ai` + severity + area | Explore |
 | `/devkit:grill <idea>` | The direction is set but details are open; rounds of questions until nothing is assumed → `decisions.md` | Explore, researcher |
@@ -21,7 +21,7 @@ The `nhat-kit` marketplace contains the **devkit 2.1.0** plugin: 17 commands, 9 
 | `/devkit:test [run\|write\|gaps]` | Run diff-aware tests, write tests, fill coverage gaps | tester |
 | `/devkit:review [base\|#PR] [--fix]` | Review against the plan/SPEC | code-reviewer |
 | `/devkit:git cm\|cp\|pr\|sync` | Commit, push, open a PR | git-manager (Haiku) |
-| `/devkit:ship` | Final gate, then open a PR; UI changes get screenshots/GIF published as a private evidence artifact linked in the PR | 8 gates + code-reviewer + git-manager |
+| `/devkit:ship` | Final gate, then open a PR; a report artifact (AC evidence, verification, screenshots/GIF when UI-visible) is published and linked from a slim PR body | 8 gates + code-reviewer + git-manager |
 | `/devkit:deploy [staging\|prod] [--dry-run]` | After a PR merges: deploy to staging then prod | deployer |
 | `/devkit:retro` | After a task where you had to correct Claude several times | — |
 | `/devkit:check` | Health-check a project's 4 layers | — |

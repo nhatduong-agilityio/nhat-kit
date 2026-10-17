@@ -112,7 +112,7 @@ Practices from another team's seven-week report, used as an idea source. See `up
 | Opus advises, Sonnet builds, Haiku runs | agent `model:` tiers | ✅ | P-19: −30% median cook cost, same held-out results |
 | GitHub issues as AI work queue (file, claim, fix, release) | `/devkit:issue` + `/devkit:task #N\|next` | ✅ | P-20 |
 | Issues/PRs a stranger can act on | `ISSUE_TEMPLATE/` forms + `pull_request_template.md` | ✅ | P-21 |
-| Verification evidence as an artifact (screenshots, GIF) | `ship` gate 5 / `task` step 7 + `ui-verifier` | ✅ | P-22 |
+| Verification evidence as an artifact (screenshots, GIF) | `ship` gate 5 / `task` step 7 + `ui-verifier` | ✅ | P-22; generalized to every PR as "PR report artifact" (follow-up, not re-proposed) |
 | Living CLAUDE.md; rules in files skills read | `templates/CLAUDE.md` | ✅ | P-23 |
 | Personal memory for repeated corrections | `retro` | ✅ | P-24 |
 | Markdown plan ↔ tracker two-way sync | `/devkit:plan sync` | ✅ | P-25 |
