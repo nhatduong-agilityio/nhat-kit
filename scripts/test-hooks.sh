@@ -1,16 +1,35 @@
 #!/usr/bin/env bash
 # Test the plugin hooks with sample JSON. Exits 0 when every case matches.
+# Columns: RESULT (ok/FAIL), HOOK, CASE, EXP exit, GOT exit, MS elapsed, STDERR (first line, FAIL only).
 set -u
 root="$(cd "$(dirname "$0")/.." && pwd)"
 guard="$root/plugins/devkit/scripts/protect-files.sh"
 notify="$root/plugins/devkit/scripts/notify.sh"
+scan="$root/plugins/devkit/scripts/scan-secrets.sh"
 push="$root/plugins/devkit/scripts/block-force-push.sh"
 fail=0
 
+err="$(mktemp)"; tf="$(mktemp)"
+trap 'rm -f "$err" "$tf"' EXIT
+total=0; cases=0; nfail=0
+printf '%-6s %-16s %-48s %3s %3s %6s %s\n' RESULT HOOK CASE EXP GOT MS STDERR
+
 expect() { # expect <script> <expected exit> <name> <json>
-  printf '%s' "$4" | "$1" >/dev/null 2>&1
-  local got=$?
-  if [ "$got" -eq "$2" ]; then echo "ok   $3"; else echo "FAIL $3 (expected $2, got $got)"; fail=1; fi
+  local got ms res hook name msg
+  TIMEFORMAT=%3R
+  { time printf '%s' "$4" | "$1" >/dev/null 2>"$err"; } 2>"$tf"
+  got=$?
+  ms="$(tr -cd '0-9' <"$tf")"; ms=$((10#${ms:-0}))
+  hook="$(basename "$1" .sh)"
+  name="${3//$'\r'/ / }"; name="${name//$'\n'/ / }"; name="${name//$'\t'/ / }"
+  name="$(printf '%s' "$name" | LC_ALL=C tr -c ' -~' '?')"; name="${name:0:48}"
+  res=ok; msg=""
+  if [ "$got" -ne "$2" ]; then
+    res=FAIL; fail=1; nfail=$((nfail + 1))
+    msg="$(head -n 1 "$err" | LC_ALL=C tr -c ' -~' '?')"; msg="${msg:0:80}"
+  fi
+  cases=$((cases + 1)); total=$((total + ms))
+  printf '%-6s %-16s %-48s %3s %3s %6s %s\n' "$res" "$hook" "$name" "$2" "$got" "$ms" "$msg"
 }
 
 bash_cmd() { # bash_cmd <expected exit> <command>: run block-force-push on a Bash tool call
@@ -136,8 +155,100 @@ expect "$push" 0 "push: empty input allowed"     '{}'
 expect "$push" 0 "push: no command allowed"      '{"tool_input":{"file_path":"/r/a"}}'
 expect "$push" 0 "push: malformed JSON allowed"  'not json'
 
-printf '%s' '{"message":"test"}' | "$notify" >/dev/null 2>&1
-if [ $? -eq 0 ]; then echo "ok   notify always exits 0"; else echo "FAIL notify"; fail=1; fi
+# --- scan-secrets: fixture repo with runtime-built values (no literal tokens in this file) ---
+row() { # row <hook> <name> <exp> <got> <ms> <stderr msg on FAIL>
+  local res=ok msg=""
+  if [ "$3" -ne "$4" ]; then res=FAIL; fail=1; nfail=$((nfail + 1)); msg="$6"; fi
+  cases=$((cases + 1)); total=$((total + $5))
+  printf '%-6s %-16s %-48s %3s %3s %6s %s\n' "$res" "$1" "${2:0:48}" "$3" "$4" "$5" "$msg"
+}
+rnd() { LC_ALL=C tr -dc "$1" </dev/urandom | head -c "$2"; } # rnd <charset> <length>
+fx="$(mktemp -d)"; out="$(mktemp)"; out2="$(mktemp)"
+trap 'rm -rf "$err" "$tf" "$fx" "$out" "$out2"' EXIT
+T=$'\t'
+m_aws="AK""IA****"; m_gh="gh""p_****"
+v_aws="AK""IA$(rnd 'A-Z0-9' 16)"; v_aws2="AK""IA$(rnd 'A-Z0-9' 16)"
+v_gh="gh""p_$(rnd 'A-Za-z0-9' 36)"; v_env="$(rnd 'A-Za-z0-9' 20)"
+v_aws3="AK""IA$(rnd 'A-Z0-9' 16)"; v_aws4="AK""IA$(rnd 'A-Z0-9' 16)"; v_aws5="AK""IA$(rnd 'A-Z0-9' 16)"
+mkdir -p "$fx/src" "$fx/test" "$fx/café" "$fx/my certs"
+printf 'const k = "%s";\n' "$v_aws" >"$fx/src/config.js"
+printf 'const t = "%s";\n' "$v_gh" >"$fx/test/fixture.js"
+printf 'const k = "%s";\n' "$v_aws2" >"$fx/src/a:b.js"
+printf '%s\n' "-----BEG""IN RSA PRIVATE KEY-----" >"$fx/src/pk.txt"
+printf 'const apiKey = load();\n' >"$fx/src/app.js"
+printf 'const x = 1;\n' >"$fx/src/clean.js"
+printf 'DB_PASS=%s\n' "$v_env" >"$fx/.env"
+printf 'DB_PASS=changeme\n' >"$fx/.env.example"
+printf 'const k = "%s";\n' "$v_aws3" >"$fx/:lit.js"
+printf 'x\n' >"$fx/café/id_rsa"
+printf 'x\n' >"$fx/my certs/server file.pem"
+printf 'run(eval(input));\n' >"$fx/src/sink.js"
+printf 'eval(x); const k = "%s";\n' "$v_aws4" >"$fx/src/mixed.js"
+nlf="$fx/nl"$'\n'"file.js"
+printf 'const k = "%s";\n' "$v_aws5" >"$nlf"
+git -C "$fx" init -q && git -C "$fx" add -A &&
+  git -C "$fx" -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c core.hooksPath=/dev/null commit -q -m fx
+printf 'const k = "%s";\n' "$v_aws" >"$fx/untracked.js"
+mkdir -p "$fx/apps/web"; printf 'A=1\n' >"$fx/apps/web/.env"; printf 'A=1\n' >"$fx/apps/web/.env.example"
+has() { grep -qxF -- "$1" "$out"; }
+lacks() { ! grep -qF -- "$1" "$out"; }
+check() { # check <name> <command...>: expects exit 0
+  local n="$1" got; shift
+  "$@" >/dev/null 2>&1; got=$?
+  row scan-secrets "$n" 0 "$got" 0 "assertion failed"
+}
+TIMEFORMAT=%3R
+{ time "$scan" "$fx" >"$out" 2>/dev/null; } 2>"$tf"
+got=$?
+ms="$(tr -cd '0-9' <"$tf")"; ms=$((10#${ms:-0}))
+row scan-secrets "fixture scan exits 0" 0 "$got" "$ms" "scan-secrets.sh failed or missing"
+"$scan" >/dev/null 2>&1; got=$?
+row scan-secrets "no args is a usage error" 1 "$got" 0 "expected exit 1"
+check "self-test: all rules ok" grep -qxF "# scanned: 8 rules ok, 0 failed" "$out"
+check "aws key in src is critical" has "critical${T}secret${T}src/config.js:1${T}${m_aws}${T}aws-key"
+check "path with colon stays intact" has "critical${T}secret${T}src/a:b.js:1${T}${m_aws}${T}aws-key"
+check "test path downgraded to low" has "low${T}secret${T}test/fixture.js:1${T}${m_gh}${T}github-token"
+check "private key header critical" has "critical${T}secret${T}src/pk.txt:1${T}----****${T}private-key"
+check "generic rule is medium" has "medium${T}secret${T}src/app.js:1${T}apiK****${T}generic"
+check "tracked .env is high" has "high${T}sensitive-file${T}.env${T}(environment file)${T}protect-files"
+check ".env not ignored is medium" has "medium${T}sensitive-file${T}.env${T}(not ignored)${T}env-not-ignored"
+check ".env.example not flagged" lacks ".env.example"
+check "clean file not flagged" lacks "clean.js"
+check "--check counts a real row" test "$("$scan" "$fx" --check aws-key src/config.js 2>/dev/null)" = 1
+check "--check is 0 on a clean file" test "$("$scan" "$fx" --check aws-key src/clean.js 2>/dev/null)" = 0
+"$scan" "$fx" --check no-such-rule src/config.js >/dev/null 2>&1; got=$?
+row scan-secrets "--check unknown rule is a usage error" 1 "$got" 0 "expected exit 1"
+check "--check literal ':' tracked path" test "$("$scan" "$fx" --check aws-key ':lit.js' 2>/dev/null)" = 1
+"$scan" "$fx" --check aws-key untracked.js >/dev/null 2>&1; got=$?
+row scan-secrets "--check untracked path is exit 2" 2 "$got" 0 "expected exit 2"
+"$scan" "$fx" --check "aws-key github-token" src/config.js >/dev/null 2>&1; got=$?
+row scan-secrets "--check multi-word rule is exit 1" 1 "$got" 0 "expected exit 1"
+check "non-ASCII id_rsa reported high" has "high${T}sensitive-file${T}café/id_rsa${T}(key/certificate)${T}protect-files"
+check "spaced .pem reported high" has "high${T}sensitive-file${T}my certs/server file.pem${T}(key/certificate)${T}protect-files"
+check "newline path gives info row" has "info${T}tool error${T}-${T}-${T}path with newline skipped"
+check "newline path gives no secret row" lacks "file.js"
+check "nested untracked .env is medium" has "medium${T}sensitive-file${T}apps/web/.env${T}(not ignored)${T}env-not-ignored"
+check "nested .env.example not flagged" lacks "apps/web/.env.example"
+mkdir -p "$fx/.env2"; printf 'x\n' >"$fx/.envrc"; printf 'y\n' >"$fx/.env2/f"
+"$scan" "$fx" >"$out" 2>/dev/null
+check ".envrc not flagged" lacks ".envrc"
+check "files under .env2/ not flagged" lacks ".env2/f"
+check "tracked root .env reported once" test "$(grep -c "${T}\.env${T}(not ignored)" "$out")" = 1
+fx2="$fx/.untracked-env"; mkdir -p "$fx2"; git -C "$fx2" init -q; printf 'A=1\n' >"$fx2/.env"
+check "untracked root .env reported once" test "$("$scan" "$fx2" 2>/dev/null | grep -c "${T}\.env${T}(not ignored)")" = 1
+"$scan" "$fx" --sinks >"$out2" 2>/dev/null; got=$?
+row scan-secrets "--sinks exits 0" 0 "$got" 0 "scan-secrets.sh --sinks failed"
+check "sink in unflagged file listed" grep -qxF "src/sink.js:1${T}eval" "$out2"
+check "sink in flagged file not listed" bash -c '! grep -qF "src/mixed.js" "$1"' _ "$out2"
+check "sinks output has no secret value" bash -c '! grep -qF "$2" "$1"' _ "$out2" "$v_aws4"
+check "sinks output has no line content" bash -c '! grep -qF "input" "$1"' _ "$out2"
+for v in "$v_aws" "$v_aws2" "$v_gh" "$v_env" "$v_aws3" "$v_aws4" "$v_aws5"; do
+  check "no full value in output" lacks "$v"
+  check "no 12-char prefix in output" lacks "${v:0:12}"
+done
 
+expect "$notify" 0 "always exits 0" '{"message":"test"}'
+
+echo "$cases cases, $nfail failed, total $total ms"
 [ "$fail" -eq 0 ] && echo "All hooks passed." || echo "Some hooks failed."
 exit "$fail"
