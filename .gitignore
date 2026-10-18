@@ -1,3 +1,6 @@
 .claude/current-task
 .claude/settings.local.json
 CLAUDE.local.md
+
+# devkit eval results
+plugins/devkit/evals/results/
