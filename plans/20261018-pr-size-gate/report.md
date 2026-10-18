@@ -47,5 +47,6 @@ Plan: `plan.md` (3 phases, --fast). Branch `feat/pr-size-gate`, not committed.
 - **Not done:** O4. Markdown rendering of the glob list; the parser reads raw text and backticks would become part of the value.
 
 ## Out of scope / open
+- Ship-gate re-review: 0 Critical, 1 Warning (review's empty scope hardcoded `main`; fixed: no base → script default, and exit 1 is reported). Optional, not done: an untracked symlink counts its target's lines (should be 1 file, 1 line); the task allowed-tools glob could be narrower.
 - Per-task size tiers and a `gh pr create` hook.
 - The P-30 and P-36 keys; their plans add them to `docs/devkit.md`.
