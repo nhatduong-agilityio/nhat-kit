@@ -4,6 +4,8 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-18
+
 ### Added
 
 - `/devkit:security-scan` and the `security-scanner` agent (sonnet, read-only): a whole-project scan. The deterministic part runs in the plugin's `scripts/scan-secrets.sh` (one allowable command): secret patterns in the tracked tree (POSIX regex rules with a self-test, values masked to 4 chars before they reach context), sensitive tracked files (the `protect-files` hook is the oracle), and not-ignored `.env` files; `--sinks` lists risky code sinks as `path:line` + rule name only, skipping flagged files; `--check <rule> <path>` re-checks a row by count. The agent adds dependency advisories through already-installed audit tools that don't run repo code (`npm`/`pnpm`/`yarn` classic audit, `cargo audit --file`, else `osv-scanner -L`, else `not run`) and reads ±5 lines around each sink to keep plausible review candidates. The skill re-checks critical rows and writes a redacted, gitignored `security-scan/<YYYYMMDD-HHMM>.md` and points to `/security-review` for the branch diff and `gitleaks git` for history (P-14).

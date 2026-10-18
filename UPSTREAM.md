@@ -10,7 +10,7 @@ devkit is written entirely from scratch. ClaudeKit serves only as an **idea sour
 | Latest ClaudeKit release in the public changelog | v2.13.0 (2026-02-25); v2.14.0 upcoming (deploy ✅, llms, project-organization, 3-tier evals, expert-persona ✅, security-scan, ship ✅, retro ✅) |
 | llms.txt reviewed | https://docs.claudekit.cc/llms.txt — 2026-10-16 |
 | Claude Code commands reference | code.claude.com/docs/en/commands — reviewed 2026-10-16 |
-| Matching devkit version | 2.1.0 |
+| Matching devkit version | 2.3.0 |
 
 ## Feature table
 
