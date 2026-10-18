@@ -50,14 +50,14 @@ If on the main branch, create a branch following the convention in CLAUDE.md (de
 ## 6. Implement against the ACs (tests first)
 
 1. Have the `devkit:tester` subagent run in `write-first` mode on the SPEC; the tests must fail for the right reason.
-2. Code until the tests pass: for a multi-phase plan, give each phase to `devkit:fullstack-developer`; for a small change, do it yourself. Follow the patterns found in step 4; no new libraries without asking.
+2. Code until the tests pass: for a multi-phase plan, give each phase to `devkit:fullstack-developer` (if a phase's checks are red, send it back one tier up per the conventions' "Retry one tier up"); for a small change, do it yourself. Follow the patterns found in step 4; no new libraries without asking.
 3. After each batch of changes, run the check commands from CLAUDE.md (lint, typecheck, related tests).
 
 ## 7. Verify and review
 
 - Run the project's `verify` skill (if any) or `/verify`.
 - Build the PR report content per the conventions' "PR report artifact" section. For UI changes, collect its Screenshots/GIF sub-part: have the `ui-verifier` subagent (if the project has one) check each AC in a browser and save screenshots to `docs/tasks/<TASK_ID>-<slug>/evidence/`; if there is no `ui-verifier`, or it reports no browser tools, do the same yourself with the browser tools you have (Playwright MCP or `/claude-in-chrome`). Publish the whole report as one artifact plus a condensed checklist summary (one line per PR-template checklist item, evidenced or not), or keep the fallback full content when no Artifact tool is available.
-- Have the `devkit:code-reviewer` subagent review the diff against the SPEC. Fix only findings that affect correctness or ACs; list the rest as optional.
+- Have the `devkit:code-reviewer` subagent review the diff against the SPEC. Fix only findings that affect correctness or ACs (a fix sent back to a subagent follows "Retry one tier up"); list the rest as optional.
 - Repeat until every AC has evidence (test output, command and result, screenshot).
 
 ## 8. Ship

@@ -39,7 +39,7 @@ Subagents run on a model that fits their role. The main session (your model) pla
 | `sonnet` | `fullstack-developer`, `tester`, `researcher`, `security-scanner` |
 | `haiku` | `deployer`, `git-manager` |
 
-In a `/devkit:cook` benchmark this cut the median cost by 30%, with the same held-out test results (`plans/20261016-agent-model-tiers/benchmark.md`). To run every agent on one model, set both `CLAUDE_CODE_SUBAGENT_MODEL=<model>` and `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1`; the first one alone does not override frontmatter. A single Agent call can also pass `model`.
+In a `/devkit:cook` benchmark this cut the median cost by 30%, with the same held-out test results (`plans/20261016-agent-model-tiers/benchmark.md`). To run every agent on one model, set both `CLAUDE_CODE_SUBAGENT_MODEL=<model>` and `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1`; the first one alone does not override frontmatter. A single Agent call can also pass `model`; cook and task use this to run a sent-back retry one tier up (e.g. `sonnet` → `opus`); with the FORCE variable set, the forced model is expected to win (not verified).
 
 ## The 4 layers bootstrap sets up in each project
 
