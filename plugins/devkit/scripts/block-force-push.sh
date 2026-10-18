@@ -1,23 +1,74 @@
 #!/usr/bin/env bash
-# PreToolUse (Bash): block git pushes that rewrite remote history.
+# PreToolUse (Bash): block git pushes that rewrite remote history, and gh commands that
+# bypass human review (gh pr merge --admin, gh pr review --approve/-a).
 # exit 2 + stderr = block and tell Claude why. exit 0 = no objection.
 # A guardrail, not a sandbox. Not inspected: quoted command strings (bash -c "...",
-# eval), git aliases, scripts, and pushes started by other programs.
+# eval), git aliases, scripts, gh api/GraphQL calls, and pushes started by other programs.
 here="$(cd "$(dirname "$0")" && pwd)"
 input="$(cat)"
 cmd="$(printf '%s' "$input" | "$here/json-field.sh" tool_input.command)"
 
-# Fast path: most Bash calls are not pushes.
+# Fast path: most Bash calls are neither pushes nor gh pr commands.
 case "$cmd" in
-  *git*push*) ;;
+  *git*push*|*gh*pr*) ;;
   *) exit 0 ;;
 esac
 cmd="${cmd//$'\r'/}"
 export LC_ALL=C   # byte-wise indexing: much faster on long lines
 
-block() {
-  echo "Blocked by devkit: '$1' rewrites remote history (force push or --mirror). If the user really wants it, they can run it themselves with: ! $1" >&2
+block() { # block <command> <reason>
+  echo "Blocked by devkit: '$1' $2 ! $1" >&2
   exit 2
+}
+REASON_GIT='rewrites remote history (force push or --mirror). If the user really wants it, they can run it themselves with:'
+REASON_GH='bypasses human review (admin merge or self-approval). Ask a reviewer; if the user really wants it, they can run:'
+
+is_false() { case "$1" in false|False|FALSE|f|F|0) return 0 ;; esac; return 1; }  # pflag ParseBool
+
+# check_gh <index of gh> <word>...: block gh pr merge --admin and gh pr review --approve/-a.
+check_gh() {
+  local start=$1 i p s t sub
+  shift
+  local -a w=("$@")
+  local n=$#
+  i=$start
+  i=$((i + 1))
+  while [ "$i" -lt "$n" ]; do   # gh global flags
+    case "${w[$i]}" in
+      -R|--repo|--hostname) i=$((i + 2)) ;;
+      -*) i=$((i + 1)) ;;
+      *) break ;;
+    esac
+  done
+  [ "${w[$i]:-}" = pr ] || return 0
+  sub="${w[$((i + 1))]:-}"
+  case "$sub" in merge|review) ;; *) return 0 ;; esac
+  i=$((i + 2))
+  while [ "$i" -lt "$n" ]; do
+    t="${w[$i]}"
+    case "$t" in
+      --body|-b|--body-file|-F|--subject|-t|--match-head-commit|--author-email|-A|-R|--repo) i=$((i + 1)) ;;  # value follows
+      --admin) [ "$sub" = merge ] && block "${w[*]:$start}" "$REASON_GH" ;;
+      --admin=*) [ "$sub" = merge ] && ! is_false "${t#--admin=}" && block "${w[*]:$start}" "$REASON_GH" ;;
+      --approve) [ "$sub" = review ] && block "${w[*]:$start}" "$REASON_GH" ;;
+      --approve=*) [ "$sub" = review ] && ! is_false "${t#--approve=}" && block "${w[*]:$start}" "$REASON_GH" ;;
+      --) break ;;                                    # end of options
+      --*) ;;
+      -?*)                                           # short-flag cluster; a value-taking letter starts its value
+        s="${t#-}"
+        if [ "$sub" = review ]; then
+          p="${s%%[bFR]*}"
+          case "$p" in *a*) block "${w[*]:$start}" "$REASON_GH" ;; esac
+          [ "${#p}" -eq $((${#s} - 1)) ] && i=$((i + 1))  # the first value letter ends the cluster: its value is the next word
+        else
+          p="${s%%[btFAR]*}"
+          [ "${#p}" -eq $((${#s} - 1)) ] && i=$((i + 1))
+        fi
+        ;;
+    esac
+    i=$((i + 1))
+  done
+  return 0
 }
 
 # check_segment <word>...: block if the words of one simple command form a force push.
@@ -46,7 +97,11 @@ check_segment() {
     esac
   done
   [ "$i" -lt "$n" ] || return 0
-  [ "${w[$i]##*/}" = git ] || return 0
+  case "${w[$i]##*/}" in
+    git) ;;
+    gh) check_gh "$i" "${w[@]}"; return 0 ;;
+    *) return 0 ;;
+  esac
   start=$i
   i=$((i + 1))
 
@@ -65,15 +120,15 @@ check_segment() {
     t="${w[$i]}"
     case "$t" in
       -o|--push-option|--repo|--receive-pack|--exec) i=$((i + 1)) ;;   # value follows
-      --force*|--m|--mi*) block "${w[*]:$start}" ;;  # --force, -with-lease, -if-includes, --mirror, abbreviations
+      --force*|--m|--mi*) block "${w[*]:$start}" "$REASON_GIT" ;;  # --force, -with-lease, -if-includes, --mirror, abbreviations
       --*) ;;
       -o*) ;;                                         # -o<value>
       -*)                                             # short-flag cluster; an o starts its value
         s="${t#-}"
         s="${s%%o*}"
-        case "$s" in *f*) block "${w[*]:$start}" ;; esac
+        case "$s" in *f*) block "${w[*]:$start}" "$REASON_GIT" ;; esac
         ;;
-      +*) block "${w[*]:$start}" ;;                   # forced refspec such as +main
+      +*) block "${w[*]:$start}" "$REASON_GIT" ;;                   # forced refspec such as +main
     esac
     i=$((i + 1))
   done
@@ -156,7 +211,7 @@ while IFS= read -r line || [ -n "$line" ]; do
   # Fast path for lines that cannot matter: no git, nothing that changes parsing state.
   if [ -z "$sq" ] && [ -z "$ctx" ] && [ "$cont" = 0 ]; then
     case "$line" in
-      *git*|*\'*|*\"*|*\\*|*\<*|*\(*|*\)*) ;;
+      *git*|*gh*|*\'*|*\"*|*\\*|*\<*|*\(*|*\)*) ;;
       *) end_segment; continue ;;
     esac
     # Scanning is quadratic in line length; lines over 16 KB are not inspected.
