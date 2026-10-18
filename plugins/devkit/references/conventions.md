@@ -140,6 +140,13 @@ Used by `/devkit:plan sync <plan.md>`.
 - Unlike a queue issue (above), a sync-created issue is meant to be closed by hand on purpose — there is no `Closes #N`-via-PR workflow for it — and that manual close is exactly what pull is watching for.
 - **Guard**: refuses to run on a `Status: draft` plan; works for `approved`, `in-progress`, `done`.
 
+## Retry one tier up
+
+- When work goes back to the same agent type because its verify was red or a review/test finding must be fixed, pass the Agent `model` override one tier above that agent's `model:`: `haiku` → `sonnet`, `sonnet` → `opus`. Agents on `inherit` or `opus` keep their model.
+- Only the retry escalates; the next phase or task starts again at the agent's default.
+- Name the tier in the progress line and in `report.md` (cook) or the PR report (task), e.g. "Phase 2: retry 1 on opus".
+- With `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1`, the forced model is expected to win, so nothing escalates (not verified).
+
 ## Agent hand-off contract
 
 Every agent ends with this block — short, without repeating file contents:
