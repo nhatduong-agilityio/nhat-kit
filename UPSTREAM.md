@@ -137,7 +137,7 @@ A teammate's squad-orchestration plugin, used as an idea source ([repo](https://
 | Doctor: check, then fix after confirmation (+ team checks) | `/devkit:check` | ⏳ | P-32 (stage 1) |
 | Explicit-yes gates with who/when recorded | `/devkit:plan` approval | ⏳ | P-33 (shared) |
 | Stakeholder answers verbatim + English translation | `grill` / `task` / `requirements-analyst` | ⏳ | P-34 (shared) |
-| Block `gh pr merge --admin` and self-approval | `block-force-push` hook | ⏳ | P-35 (shared) |
+| Block `gh pr merge --admin` and self-approval | `block-force-push` hook | ✅ | P-35 (shared) |
 | Open-PR back-pressure | `/devkit:task next` | ⏳ | P-36 (stage 1) |
 | Team metrics from GitHub data only | — | ⏳ | P-37 (stage 1) |
 | Production approval via GitHub Environment reviewers | `/devkit:deploy` | ⏳ | P-38 (stage 1) |
