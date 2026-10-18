@@ -10,6 +10,7 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ### Changed
 
+- `/devkit:ship` gate 1 and `/devkit:task` stop before the PR when the change is over the `docs/devkit.md` limits and propose a split (continue only on the user's word, noted in Risks and impact); `/devkit:review` reports it as a Warning; `/devkit:bootstrap` copies `docs/devkit.md`, adding only missing keys; conventions name `docs/devkit.md` as the home for project-tunable settings (P-27).
 - `/devkit:cook` and `/devkit:task` retry sent-back work one model tier up (`haiku` → `sonnet` → `opus`) via the Agent `model` override: a red verify or a review/test fix sent back to `fullstack-developer` runs on `opus`; first attempts keep the agent's default; conventions gain "Retry one tier up"; not yet verified by an eval, see P-26 (P-29).
 - `block-force-push` hook also blocks `gh pr merge --admin` (bypasses branch protection) and `gh pr review --approve`/`-a` (an agent approving a PR), using the same tokenizer, so quoted text, heredocs, and PR bodies that mention these flags still pass; a normal `gh pr merge` is allowed (P-35).
 - Scope: devkit is described as a kit for one engineer or a team sharing a GitHub issue queue, with squad orchestration as the next stage (README, plugin and marketplace descriptions, repo `CLAUDE.md`). `UPSTREAM.md` and `upstream/proposals/20261018.md` record the `agile-squad` review: P-26–P-46 in two stages.

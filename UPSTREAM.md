@@ -129,7 +129,7 @@ A teammate's squad-orchestration plugin, used as an idea source ([repo](https://
 | Practice | devkit | Status | Notes |
 | --- | --- | --- | --- |
 | Plugin behavior evals (cases, fixtures, rubric + tool-call graders) | — | ⏳ | P-26 (shared) |
-| PR size limit per task size | — | ⏳ | P-27 (shared) |
+| PR size limit per task size | `scripts/pr-size.sh` in `ship`/`task`/`review` | ✅ | P-27 (shared); one limit, no per-task tiers; settings in `docs/devkit.md` |
 | Requirements ingestion to traceable markdown sources | `bootstrap` / `requirements-analyst` | ⏳ | P-28 (shared) |
 | Retry one model tier up after a send-back | `cook`, `task` | ✅ | P-29 (shared); escalation not yet proven by a run, see P-26 |
 | Claim TTL and released-claim marking | `/devkit:task` queue | ⏳ | P-30 (stage 1) |
