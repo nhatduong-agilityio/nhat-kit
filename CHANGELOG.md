@@ -4,6 +4,8 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-10-18
+
 ### Added
 
 - `templates/hooks/check-before-commit.sh`: a per-project PreToolUse `Bash` hook that runs the project's Quick check (typecheck + lint) before any `git commit` Claude or a subagent runs, and blocks the commit (exit 2, last 30 lines of output) only when the check fails; every other path exits 0. `/devkit:bootstrap` fills its command from the verified Quick check and deletes it when a project has neither typecheck nor lint; existing projects can copy it or re-run `/devkit:bootstrap`, which merges (P-7a).
