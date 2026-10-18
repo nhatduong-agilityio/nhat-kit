@@ -247,6 +247,51 @@ for v in "$v_aws" "$v_aws2" "$v_gh" "$v_env" "$v_aws3" "$v_aws4" "$v_aws5"; do
   check "no 12-char prefix in output" lacks "${v:0:12}"
 done
 
+# --- commit-gate: template copies with {{QUICK_CHECK_CMD}} substituted ---
+tpl="$root/plugins/devkit/templates/hooks/check-before-commit.sh"
+gd="$(mktemp -d)"
+trap 'rm -rf "$err" "$tf" "$fx" "$out" "$out2" "$gd"' EXIT
+gate() { # gate <check cmd|@unfilled> <exp> <name> <command> [stderr substring]
+  local copy="$gd/check-before-commit.sh" json
+  rm -f "$copy"
+  if [ "$1" = "@unfilled" ]; then cp "$tpl" "$copy"
+  else python3 -c 'import sys; t=open(sys.argv[1]).read(); open(sys.argv[2],"w").write(t.replace("{{QUICK_CHECK_CMD}}", sys.argv[3]))' "$tpl" "$copy" "$1"; fi
+  chmod +x "$copy" 2>/dev/null
+  case "$4" in "{"*|not*) json="$4" ;; *)
+    json="$(python3 -c 'import json,sys; print(json.dumps({"tool_input":{"command":sys.argv[1]}}))' "$4")" ;; esac
+  expect "$copy" "$2" "gate: $3" "$json"
+  if [ -n "${5:-}" ]; then
+    grep -qF -- "$5" "$err"; row check-before-commit "gate: stderr has $5" 0 $? 0 "stderr missing text"
+  fi
+}
+gate true 0 "passing check allows commit" 'git commit -m x'
+gate false 2 "failing check blocks commit" 'git commit -m x' 'Blocked by devkit'
+gate 'sh -c "echo boom-line; exit 1"' 2 "failing output is shown" 'git commit -m x' 'boom-line'
+gate "sh -c 'echo quoted; exit 1'" 2 "check with single quotes blocks" 'git commit -m x' 'quoted'
+gate 'true && true' 0 "check with && passes" 'git commit -m x'
+gate "true # project's check" 0 "apostrophe in a comment is safe" 'git status'
+gate "false # project's check" 2 "apostrophe comment still runs the check" 'git commit -m x'
+gate 'echo "unterminated' 0 "unbalanced quote in fill never blocks git status" 'git status'
+gate false 2 "FOO=1 git commit blocked" 'FOO=1 git commit -m x'
+gate false 2 "sudo git commit blocked" 'sudo git commit -m x'
+gate false 2 "git --no-pager commit blocked" 'git --no-pager commit -m x'
+gate false 2 "git -C quoted path commit blocked" 'git -C "a b" commit -m x'
+gate false 2 "/usr/bin/git commit blocked" '/usr/bin/git commit -m x'
+gate false 2 "git -c k=v commit blocked" 'git -c k=v commit -m x'
+gate false 0 "git commit-tree is not a commit" 'git commit-tree HEAD^{tree}'
+gate false 2 "git -c quoted value commit blocked" 'git -c user.name="a b" commit -m x'
+gate false 2 "nohup git commit blocked" 'nohup git commit -m x'
+gate false 0 "git status is not a commit" 'git status'
+gate false 0 "git log --grep commit is not a commit" 'git log --grep commit'
+gate false 2 "chained commit blocked" 'npm test && git commit -m x'
+gate false 2 "git -C repo commit blocked" 'git -C repo commit -m x'
+gate false 2 "env FOO=1 git commit blocked" 'env FOO=1 git commit'
+gate false 2 "multi-line command blocked" $'git add -A\ngit commit -m x'
+gate @unfilled 0 "unfilled placeholder allows" 'git commit -m x'
+gate no-such-cmd-xyz 0 "missing check command allows" 'git commit -m x'
+gate false 0 "malformed JSON allowed" 'not json'
+gate false 0 "empty input allowed" '{}'
+
 expect "$notify" 0 "always exits 0" '{"message":"test"}'
 
 echo "$cases cases, $nfail failed, total $total ms"

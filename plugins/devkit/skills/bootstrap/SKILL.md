@@ -55,7 +55,7 @@ Then present the **BOOTSTRAP PLAN**: a table of every file to create or modify, 
 ## Step 4 — Layer 1: Config & permissions
 
 - `.claude/settings.json` from `templates/settings.json`: `allow` exactly the commands that ran successfully; `ask` for `git push`; `deny` reading `.env*` and editing generated-code folders (if any).
-- Copy `templates/hooks/*.sh` to `.claude/hooks/` and `chmod +x` them. Keep the format hook only if the project has a formatter.
+- Copy `templates/hooks/*.sh` to `.claude/hooks/` and `chmod +x` them. Keep the format hook only if the project has a formatter. Replace `check-before-commit.sh`'s `{{QUICK_CHECK_CMD}}` line with the verified Quick check from `CLAUDE.md`, verbatim on that one line: typecheck and lint joined with `&&`, or just the one that exists; no `#` comment and no line break. If the project has neither, delete the hook and its `PreToolUse` entry in `settings.json`.
 - Append the lines from `templates/gitignore-additions.txt` to `.gitignore` (skip lines already present).
 - Do not set `defaultMode` in the project file — Claude Code ignores `auto`/`bypassPermissions` there; the user sets it in `~/.claude/settings.json`.
 
@@ -83,7 +83,7 @@ Then present the **BOOTSTRAP PLAN**: a table of every file to create or modify, 
 ## Step 8 — Verify and hand off
 
 1. Run lint, typecheck, and tests; all must pass (or note clearly which failures pre-date the bootstrap).
-2. Test each hook script with sample JSON, e.g. `echo '{"tool_input":{"file_path":"src/x.ts"}}' | .claude/hooks/format-on-edit.sh; echo $?`.
+2. Test each hook script with sample JSON, e.g. `echo '{"tool_input":{"file_path":"src/x.ts"}}' | .claude/hooks/format-on-edit.sh; echo $?`, and `echo '{"tool_input":{"command":"git status"}}' | .claude/hooks/check-before-commit.sh; echo $?` (expect 0).
 3. If `.claude/agents/` exists: run `claude plugin validate .claude/agents`.
 4. `wc -l CLAUDE.md` must be under 120.
 5. Ask before committing; message: `chore: bootstrap claude code setup`.
