@@ -11,7 +11,7 @@ Target document: `$ARGUMENTS` or `.claude/current-task`.
 
 Conventions: `${CLAUDE_PLUGIN_ROOT}/references/conventions.md`. The plugin folder is `${CLAUDE_PLUGIN_ROOT}`; when you read another skill's file directly, replace the `CLAUDE_PLUGIN_ROOT` variable in it with this path. Use a task list for the gates below. **Stop at the first red gate**, report the error, and suggest `/devkit:fix`; don't run later gates.
 
-1. **Clean**: no temporary debug files, no added `console.log`/`print`, no new TODOs without a ticket. `git status` shows no stray files.
+1. **Clean**: no temporary debug files, no added `console.log`/`print`, no new TODOs without a ticket. `git status` shows no stray files. Size: run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/pr-size.sh <base>` (`<base>` = the `[base]` argument; none → omit it, and the script uses `origin/HEAD`, then `main`); exit 1 (unknown base, not a repo) → report it and ask, never count it as pass; `status=over` (exit 3) → stop, show the numbers and largest files, and propose a split by concern; continue only if the user says so, and then add "oversized: N lines / M files" to Risks and impact. Limits live in the project's `docs/devkit.md`.
 2. **Static**: typecheck, lint, format check per `CLAUDE.md`.
 3. **Tests**: the full suite (or CI's test command if it's in `.github/workflows`).
 4. **Build**: the production build command.
