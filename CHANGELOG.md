@@ -4,6 +4,10 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/pr-size.sh` counts the lines and files a change touches against a base (committed, uncommitted, and untracked; lockfiles, snapshots, and build output excluded) and `templates/docs/devkit.md`, the project settings doc devkit skills read at run time (`pr_max_lines` 300, `pr_max_files` 10, `pr_size_exclude`) (P-27).
+
 ### Changed
 
 - `/devkit:cook` and `/devkit:task` retry sent-back work one model tier up (`haiku` → `sonnet` → `opus`) via the Agent `model` override: a red verify or a review/test fix sent back to `fullstack-developer` runs on `opus`; first attempts keep the agent's default; conventions gain "Retry one tier up"; not yet verified by an eval, see P-26 (P-29).

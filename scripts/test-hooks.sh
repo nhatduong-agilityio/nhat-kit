@@ -324,6 +324,63 @@ gate no-such-cmd-xyz 0 "missing check command allows" 'git commit -m x'
 gate false 0 "malformed JSON allowed" 'not json'
 gate false 0 "empty input allowed" '{}'
 
+# --- pr-size: temp repos with main plus a feature branch ---
+ps="$root/plugins/devkit/scripts/pr-size.sh"
+psd="$(mktemp -d)"
+trap 'rm -rf "$err" "$tf" "$fx" "$out" "$out2" "$gd" "$psd"' EXIT
+pgit() { local d="$1"; shift; git -C "$d" -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c core.hooksPath=/dev/null "$@"; }
+mkrepo() { # mkrepo <name> [docs/devkit.md content]: fresh repo in $r, on branch feat
+  r="$psd/$1"; mkdir -p "$r"; git -C "$r" init -q; git -C "$r" symbolic-ref HEAD refs/heads/main
+  if [ -n "${2:-}" ]; then mkdir -p "$r/docs"; printf '%s\n' "$2" >"$r/docs/devkit.md"; fi
+  printf 'base\n' >"$r/README.md"; git -C "$r" add -A; pgit "$r" commit -q -m base
+  git -C "$r" checkout -q -b feat
+}
+commit_all() { git -C "$r" add -A; pgit "$r" commit -q -m change; }
+gen() { awk -v n="$1" 'BEGIN { for (i = 1; i <= n; i++) print "line " i }'; } # gen <lines>
+psck() { # psck <name> <dir> <exp exit> <expected output substring>
+  local got
+  (cd "$2" && "$ps" main >"$out" 2>/dev/null); got=$?
+  row pr-size "$1" "$3" "$got" 0 "exit code differs"
+  if [ -n "$4" ]; then
+    grep -qF -- "$4" "$out"; row pr-size "$1: output" 0 $? 0 "missing: $4"
+  fi
+}
+mkrepo small; gen 5 >"$r/a.txt"; commit_all
+psck "small change is ok" "$r" 0 "lines=5 files=1 max_lines=300 max_files=10 excluded=0 base=main status=ok"
+mkrepo dashname; printf 'a\nb\n' >"$r/-dash.txt"
+psck "untracked name starting with - counts its lines" "$r" 0 "lines=2 files=1"
+mkrepo manyuntracked; mkdir -p "$r/u"; for i in $(seq 1 501); do printf 'x\n' >"$r/u/f$i"; done
+psck "over 500 untracked files: lines not counted" "$r" 3 "files=501 max_lines=300 max_files=10 excluded=0 base=main status=over partial=untracked"
+mkrepo distskip; mkdir -p "$r/dist"; for i in $(seq 1 50); do gen 100 >"$r/dist/d$i.js"; done
+psck "excluded untracked files are skipped" "$r" 0 "lines=0 files=0 max_lines=300 max_files=10 excluded=50"
+mkrepo big; gen 400 >"$r/big.txt"; commit_all
+psck "400 added lines is over" "$r" 3 "lines=400 files=1 max_lines=300 max_files=10 excluded=0 base=main status=over"
+mkrepo many; for i in 1 2 3 4 5 6 7 8 9 10 11; do echo x >"$r/f$i.txt"; done; commit_all
+psck "11 one-line files is over on files" "$r" 3 "lines=11 files=11 max_lines=300 max_files=10 excluded=0 base=main status=over"
+mkrepo lock; gen 5000 >"$r/package-lock.json"; commit_all
+psck "5000-line package-lock is excluded" "$r" 0 "lines=0 files=0 max_lines=300 max_files=10 excluded=1 base=main status=ok"
+mkrepo bin; printf '\000\001\002\003' >"$r/b.bin"; commit_all
+psck "binary file counts as a file only" "$r" 0 "lines=0 files=1 max_lines=300"
+mkrepo untr; gen 7 >"$r/new.txt"
+psck "untracked file is counted" "$r" 0 "lines=7 files=1 max_lines=300"
+mkrepo cfg "- pr_max_lines: 1000"; gen 400 >"$r/big.txt"; commit_all
+psck "docs/devkit.md raises the line limit" "$r" 0 "lines=400 files=1 max_lines=1000 max_files=10 excluded=0 base=main status=ok"
+mkrepo bad $'# devkit\n- pr_max_lines: lots\n- pr_max_files:\npr_max_lines: 5\n- pr_size_exclude: '; gen 400 >"$r/big.txt"; commit_all
+psck "malformed docs/devkit.md uses defaults" "$r" 3 "lines=400 files=1 max_lines=300 max_files=10 excluded=0 base=main status=over"
+mkrepo excl "- pr_size_exclude: gen/**, *.out"; gen 50 >"$r/a.out"; mkdir "$r/gen"; gen 50 >"$r/gen/x.txt"; gen 3 >"$r/keep.txt"; commit_all
+psck "custom exclude globs apply" "$r" 0 "lines=3 files=1 max_lines=300 max_files=10 excluded=2 base=main status=ok"
+mkrepo nest; mkdir -p "$r/pkg/__snapshots__" "$r/sub"; gen 20 >"$r/pkg/__snapshots__/a.snap.txt"; gen 20 >"$r/sub/yarn.lock"; gen 20 >"$r/__snapshots__x"; commit_all
+psck "nested default excludes match" "$r" 0 "lines=20 files=1 max_lines=300 max_files=10 excluded=2"
+mkrepo uni; mkdir -p "$r/my dir"; gen 4 >"$r/my dir/café ü.txt"; commit_all
+psck "path with spaces and unicode works" "$r" 0 "my dir/café ü.txt"$'\t'"4"
+mkrepo dirty; gen 6 >"$r/a.txt"; commit_all; gen 9 >"$r/a.txt"
+psck "uncommitted tracked change is counted" "$r" 0 "lines=9 files=1 max_lines=300"
+(cd "$r" && "$ps" no-such-ref >/dev/null 2>&1); got=$?
+row pr-size "bad base ref is exit 1" 1 "$got" 0 "expected exit 1"
+mkdir -p "$psd/norepo"
+(cd "$psd/norepo" && "$ps" main >/dev/null 2>&1); got=$?
+row pr-size "not a repo is exit 1" 1 "$got" 0 "expected exit 1"
+
 expect "$notify" 0 "always exits 0" '{"message":"test"}'
 
 echo "$cases cases, $nfail failed, total $total ms"
