@@ -21,7 +21,7 @@ The `nhat-kit` marketplace contains the **devkit 2.4.0** plugin: 18 commands, 10
 | `/devkit:test [run\|write\|gaps]` | Run diff-aware tests, write tests, fill coverage gaps | tester |
 | `/devkit:review [base\|#PR] [--fix]` | Review against the plan/SPEC | code-reviewer |
 | `/devkit:git cm\|cp\|pr\|sync` | Commit, push, open a PR | git-manager (Haiku) |
-| `/devkit:ship` | Final gate, then open a PR; a report artifact (AC evidence, verification, screenshots/GIF when UI-visible) is published and linked from a slim PR body | 8 gates + code-reviewer + git-manager |
+| `/devkit:ship` | Final gate, then open a PR; a report artifact (AC evidence, verification, screenshots/GIF when UI-visible) is published and linked from a slim PR body | 8 gates (incl. a PR size gate from `docs/devkit.md`) + code-reviewer + git-manager |
 | `/devkit:deploy [staging\|prod] [--dry-run]` | After a PR merges: deploy to staging then prod | deployer |
 | `/devkit:retro` | After a task where you had to correct Claude several times | — |
 | `/devkit:check` | Health-check a project's 4 layers | — |
@@ -210,5 +210,5 @@ claude-kit/
     ├── agents/      10 subagents
     ├── hooks/hooks.json, scripts/
     ├── references/conventions.md
-    └── templates/   CLAUDE.md, settings.json, rules, hooks, agents, docs, issue forms, PR
+    └── templates/   CLAUDE.md, settings.json, rules, hooks, agents, docs (incl. devkit.md settings), issue forms, PR
 ```

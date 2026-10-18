@@ -10,7 +10,7 @@ Input: `$ARGUMENTS`
 
 1. Determine scope:
    - `#123` → `gh pr view 123 --json title,body,headRefName,baseRefName` and `gh pr diff 123`.
-   - A branch name → diff `<branch>...HEAD`. A path → only that file/folder. Empty → changes against the main branch, including uncommitted ones.
+   - A branch name → diff `<branch>...HEAD`. A path → only that file/folder. Empty → changes against the main branch, including uncommitted ones. Size: branch scope → `bash ${CLAUDE_PLUGIN_ROOT}/scripts/pr-size.sh <branch>`; empty scope → run it without a base (the script uses `origin/HEAD`, then `main`); a path scope has no size check; exit 1 → say so in the report, never as within limits; for `#123` use `gh pr view 123 --json additions,deletions,changedFiles` (GitHub totals, no excludes; say so). Over the `docs/devkit.md` limits → a Warning.
 2. Find the target document: `.claude/current-task`, or a plan/SPEC mentioned in the PR body or branch name. None → review against the PR description or commit messages.
 3. Delegate to the `devkit:code-reviewer` subagent with the scope and target document. Large changes (> 20 files or several modules) → run several reviewers in parallel, one per file group, then merge and deduplicate.
 4. Re-check every **Critical** finding yourself by reading the code at `file:line`; drop false positives.

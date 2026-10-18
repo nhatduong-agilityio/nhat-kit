@@ -3,7 +3,7 @@ name: task
 description: Take a task from the BA (text, file, GitHub issue, Jira key, or link) through spec → plan → code → verify → review → PR, following the project's standards.
 argument-hint: "<task text | file path | #issue | next | JIRA-123 | URL>"
 disable-model-invocation: true
-allowed-tools: Bash(git status *) Bash(git diff *) Bash(git log *) Bash(gh issue view *) Bash(gh issue list *) Bash(gh pr view *)
+allowed-tools: Bash(git status *) Bash(git diff *) Bash(git log *) Bash(gh issue view *) Bash(gh issue list *) Bash(gh pr view *) Bash(bash */pr-size.sh *)
 ---
 
 # BA task → PR
@@ -64,6 +64,7 @@ If on the main branch, create a branch following the convention in CLAUDE.md (de
 
 - Update the SPEC: mark each AC as met with its evidence; record the assumptions used.
 - Commit through the `devkit:git-manager` subagent (operation `commit`, `Refs: <TASK_ID>`).
+- Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/pr-size.sh <base>` (`<base>` = the branch the PR will target, usually the default branch); exit 1 → report it and ask; over the limit → propose a split and continue only if the user says so (note it in Risks and impact).
 - **Ask before pushing.** Then have `devkit:git-manager` run `push` and `pr` using `.github/pull_request_template.md`, passing either (a) the report artifact link, the condensed checklist summary, and the Risks-and-impact text, or (b), when no Artifact tool was available in step 7, the full report content for the fallback inline body.
 - Update the item's status in `docs/BACKLOG.md` if present.
 - Delete `.claude/current-task`.

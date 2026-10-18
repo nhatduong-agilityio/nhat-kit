@@ -17,6 +17,7 @@ All artifacts are written in English: code, comments, commit messages, plans, sp
 | `docs/tasks/<TASK_ID>-<slug>/SPEC.md` | Spec for a BA task (with ACs) | `/devkit:task` |
 | `docs/PROJECT_BRIEF.md`, `docs/BACKLOG.md` | Project context | `/devkit:bootstrap` |
 | `security-scan/<YYYYMMDD-HHMM>.md` | Redacted whole-project security scan (gitignored) | `/devkit:security-scan`, agent `security-scanner` |
+| `docs/devkit.md` | Project settings devkit skills read at run time (`- key: value`; defaults when missing) | `/devkit:bootstrap`, then the team |
 | `.claude/current-task` | Path of the plan or SPEC in progress (one line) | the running skill; deleted when done |
 
 `slug`: lowercase, hyphenated, at most 5 words, ASCII only. Dates use the machine's local time.
@@ -168,4 +169,4 @@ Every agent ends with this block — short, without repeating file contents:
 - YAGNI: do exactly the assigned scope. Out-of-scope ideas go under "Open issues".
 - Ask before: pushing, opening/merging PRs, deleting files outside scope, running migrations, changing a public API.
 - A skill or agent that changes a project convention (a build/test command, a per-module rule in `.claude/rules/`, a workflow rule) updates that project's `CLAUDE.md` in the same commit. A convention change and a stale `CLAUDE.md` never ship separately.
-- A skill's changeable, project-tunable settings (label names, severity thresholds, area lists, and similar) belong in a project-level file the skill reads at run time, not hardcoded in the skill's own prompt. A user customizing the behavior edits that doc, not devkit's skill files. This is forward-looking guidance for new and changed skills; it does not require retrofitting existing skills (see Out of scope).
+- A skill's changeable, project-tunable settings (label names, severity thresholds, area lists, and similar) belong in the project's `docs/devkit.md` (or, for lists the GitHub forms already own, those forms), which the skill reads at run time, not hardcoded in the skill's own prompt. A user customizing the behavior edits that doc, not devkit's skill files. This is forward-looking guidance for new and changed skills; it does not require retrofitting existing skills (see Out of scope).

@@ -77,6 +77,7 @@ Then present the **BOOTSTRAP PLAN**: a table of every file to create or modify, 
 ## Step 7 — Layer 4: Workflow & automation
 
 - Copy `templates/docs/tasks/_TEMPLATE/SPEC.md` to `docs/tasks/_TEMPLATE/SPEC.md`.
+- Copy `templates/docs/devkit.md` to `docs/devkit.md`; if it exists, only add keys it is missing.
 - If the remote is GitHub: `.github/pull_request_template.md` from `templates/github/pull_request_template.md`, and `.github/ISSUE_TEMPLATE/` (`bug.yml`, `feature.yml`, `config.yml`) from `templates/github/ISSUE_TEMPLATE/`. Replace `{{AREAS}}` with one `- <area>` option line per module found in step 2; if there are no clear modules, delete the Area field.
 - Don't install CI. In the final report, suggest `/install-github-app` (PR review in CI), `/schedule` (a morning PR review routine), `/autofix-pr`.
 
