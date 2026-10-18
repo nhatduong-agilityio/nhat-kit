@@ -81,7 +81,7 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 | Quality gate hooks, diagnostics | `templates/hooks/check-before-commit.sh` | ◐ | P-7a: per-project hook runs the Quick check before `git commit`; P-7b (LLM judge in test-hooks.sh) dropped, replaced by P-26 behavior evals |
 | Hook Diagnostics Dashboard (CLI v3.36.0 upcoming) | `scripts/test-hooks.sh` | ✅ | P-15: per-case table (hook, case, exit, ms, first stderr line) in `scripts/test-hooks.sh` |
 | Statusline | — | ⏳ | |
-| 3-tier eval system (v2.14.0 upcoming) | — | ⏳ | P-7b dropped (2026-10-17); behavior evals planned as P-26 (agile-squad review) |
+| 3-tier eval system (v2.14.0 upcoming) | `plugins/devkit/evals/` | ◐ | P-26: behavior evals via `claude plugin eval`; no 3-tier structure |
 
 ### Claude Code built-ins (new, reviewed 2026-10-09)
 
@@ -128,10 +128,10 @@ A teammate's squad-orchestration plugin, used as an idea source ([repo](https://
 
 | Practice | devkit | Status | Notes |
 | --- | --- | --- | --- |
-| Plugin behavior evals (cases, fixtures, rubric + tool-call graders) | — | ⏳ | P-26 (shared) |
+| Plugin behavior evals (cases, fixtures, rubric + tool-call graders) | `plugins/devkit/evals/` | ✅ | P-26 (shared); 3 core cases pass, 2 `needs-bash` cases blocked by this machine's Bash sandbox |
 | PR size limit per task size | `scripts/pr-size.sh` in `ship`/`task`/`review` | ✅ | P-27 (shared); one limit, no per-task tiers; settings in `docs/devkit.md` |
 | Requirements ingestion to traceable markdown sources | `bootstrap` / `requirements-analyst` | ⏳ | P-28 (shared) |
-| Retry one model tier up after a send-back | `cook`, `task` | ✅ | P-29 (shared); escalation not yet proven by a run, see P-26 |
+| Retry one model tier up after a send-back | `cook`, `task` | ✅ | P-29 (shared); escalation not yet proven by a run; the eval case `cook-retries-tier-up` exists but needs a Bash-capable sandbox |
 | Claim TTL and released-claim marking | `/devkit:task` queue | ⏳ | P-30 (stage 1) |
 | Post-deploy log error scan → bugs | `/devkit:deploy` | ⏳ | P-31 (stage 1) |
 | Doctor: check, then fix after confirmation (+ team checks) | `/devkit:check` | ⏳ | P-32 (stage 1) |

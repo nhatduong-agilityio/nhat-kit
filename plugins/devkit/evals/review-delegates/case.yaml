@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: review-delegates
+description: /devkit:review hands the diff to the devkit:code-reviewer subagent instead of reviewing in the main session.
+tags: [core, review, delegation]
+runs: 1
+context:
+  scaffold_script: fixture.sh
+execution:
+  max_turns: 15
+  allowed_tools: [Read, Glob, Grep, Skill, Agent]

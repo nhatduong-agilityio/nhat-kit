@@ -187,6 +187,10 @@ Routines run in the cloud, so they can see the skills committed in the repo's `.
 
 Rule: never obtain or copy ClaudeKit skill content or code (it's a paid product in a private repo). Learn ideas from the public docs only and write everything yourself.
 
+## Evals
+
+`plugins/devkit/evals/` holds behavior cases run with `claude plugin eval`. They cover review delegation, cook and plan-sync refusing a draft plan, the ship size gate, and the cook retry tier. The commands and costs are in `plugins/devkit/evals/README.md`. `/release` runs the core cases.
+
 ## Roadmap
 
 `UPSTREAM.md` tracks the status of each feature. Planned groups:

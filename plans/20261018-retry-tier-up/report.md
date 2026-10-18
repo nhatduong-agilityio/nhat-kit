@@ -34,5 +34,6 @@ Plan: `plan.md` (2 phases, --fast). Branch `feat/retry-tier-up`, not committed.
 - O4: "e.g. `sonnet` → `opus`".
 
 ## Out of scope / open
+- 2026-10-18: the eval case `plugins/devkit/evals/cook-retries-tier-up` (forced-red fixture, `tool_used` graders for 2 developer calls and `"model":"opus"`) was added in P-26. It could not run here: the eval Bash sandbox refuses to start while `~/.docker` holds a symlink. Still unproven.
 - Proving escalation needs a forced-red fixture and a tool-call grader: add it as a P-26 eval case.
 - Whether `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` overrides a per-call `model` is not verified.

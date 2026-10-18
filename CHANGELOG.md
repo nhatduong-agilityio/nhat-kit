@@ -6,6 +6,7 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ### Added
 
+- `plugins/devkit/evals/`: 5 behavior cases for `claude plugin eval`, with scaffolded fixtures, tool-call and rubric graders. `core` cases (no Bash) cover review delegating to `code-reviewer`, cook asking to approve a draft plan, and plan sync refusing a draft. `needs-bash` cases cover the ship size gate (P-27) and the cook retry tier (P-29). `/release` runs the core cases (P-26).
 - `scripts/pr-size.sh` counts the lines and files a change touches against a base (committed, uncommitted, and untracked; lockfiles, snapshots, and build output excluded) and `templates/docs/devkit.md`, the project settings doc devkit skills read at run time (`pr_max_lines` 300, `pr_max_files` 10, `pr_size_exclude`) (P-27).
 
 ### Changed
