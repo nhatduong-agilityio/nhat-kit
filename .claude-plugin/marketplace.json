@@ -1,6 +1,6 @@
 {
   "name": "nhat-kit",
-  "description": "Nhat's personal Claude Code toolkit: set up all 4 layers in any project and run BA tasks end to end",
+  "description": "Nhat's Claude Code toolkit for solo engineers and teams: set up all 4 layers in any project and run BA tasks end to end",
   "owner": {
     "name": "Duong Cong Nhat"
   },
@@ -8,7 +8,7 @@
     {
       "name": "devkit",
       "source": "./plugins/devkit",
-      "description": "Personal engineer kit: plan, cook, fix, debug, test, review, git, ship, scout, brainstorm, security-scan; bootstrap all 4 layers from a requirements doc; BA task to PR"
+      "description": "Engineering kit for solo engineers and teams: plan, cook, fix, debug, test, review, git, ship, scout, brainstorm, security-scan; bootstrap all 4 layers from a requirements doc; BA task to PR"
     }
   ]
 }

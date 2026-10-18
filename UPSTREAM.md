@@ -6,9 +6,9 @@ devkit is written entirely from scratch. ClaudeKit serves only as an **idea sour
 
 | Item | Value |
 | --- | --- |
-| Last reviewed | 2026-10-16 (ClaudeKit unchanged; team-practices deck added as a source) |
+| Last reviewed | 2026-10-18 (ClaudeKit unchanged; teammate plugin `agile-squad` v0.6.2 added as a source) |
 | Latest ClaudeKit release in the public changelog | v2.13.0 (2026-02-25); v2.14.0 upcoming (deploy ✅, llms, project-organization, 3-tier evals, expert-persona ✅, security-scan, ship ✅, retro ✅) |
-| llms.txt reviewed | https://docs.claudekit.cc/llms.txt — 2026-10-16 |
+| llms.txt reviewed | https://docs.claudekit.cc/llms.txt — 2026-10-16 (changelog re-checked 2026-10-18) |
 | Claude Code commands reference | code.claude.com/docs/en/commands — reviewed 2026-10-16 |
 | Matching devkit version | 2.4.0 |
 
@@ -78,10 +78,10 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 | --- | --- | --- |
 | CLI `ck init` / `ck update` | marketplace + `claude plugin update` | ✅ |
 | Protective hooks (scout-block, guards) | `protect-files`, `block-force-push` hooks | ◐ |
-| Quality gate hooks, diagnostics | `templates/hooks/check-before-commit.sh` | ◐ | P-7a: per-project hook runs the Quick check before `git commit`; P-7b (LLM judge in test-hooks.sh) dropped |
+| Quality gate hooks, diagnostics | `templates/hooks/check-before-commit.sh` | ◐ | P-7a: per-project hook runs the Quick check before `git commit`; P-7b (LLM judge in test-hooks.sh) dropped, replaced by P-26 behavior evals |
 | Hook Diagnostics Dashboard (CLI v3.36.0 upcoming) | `scripts/test-hooks.sh` | ✅ | P-15: per-case table (hook, case, exit, ms, first stderr line) in `scripts/test-hooks.sh` |
 | Statusline | — | ⏳ | |
-| 3-tier eval system (v2.14.0 upcoming) | — | ⏳ | P-7b dropped (2026-10-17); no eval layer planned |
+| 3-tier eval system (v2.14.0 upcoming) | — | ⏳ | P-7b dropped (2026-10-17); behavior evals planned as P-26 (agile-squad review) |
 
 ### Claude Code built-ins (new, reviewed 2026-10-09)
 
@@ -122,6 +122,36 @@ Practices from another team's seven-week report, used as an idea source. See `up
 | Connectors (Slack, Drive, Gmail, Trello, Calendar) | `mcp.json.example` | ✗ | per-user setup |
 | docx/pptx deliverables, timesheets, ADO sync | — | ✗ | domain-specific |
 
+### agile-squad plugin (v0.6.2, reviewed 2026-10-18)
+
+A teammate's squad-orchestration plugin, used as an idea source ([repo](https://github.com/congdang-agilityio/agile-squad)). devkit grows in two stages: a team on a shared queue, then squad orchestration (user decision, 2026-10-18). See `upstream/proposals/20261018.md`.
+
+| Practice | devkit | Status | Notes |
+| --- | --- | --- | --- |
+| Plugin behavior evals (cases, fixtures, rubric + tool-call graders) | — | ⏳ | P-26 (shared) |
+| PR size limit per task size | — | ⏳ | P-27 (shared) |
+| Requirements ingestion to traceable markdown sources | `bootstrap` / `requirements-analyst` | ⏳ | P-28 (shared) |
+| Retry one model tier up after a send-back | `cook` | ⏳ | P-29 (shared) |
+| Claim TTL and released-claim marking | `/devkit:task` queue | ⏳ | P-30 (stage 1) |
+| Post-deploy log error scan → bugs | `/devkit:deploy` | ⏳ | P-31 (stage 1) |
+| Doctor: check, then fix after confirmation (+ team checks) | `/devkit:check` | ⏳ | P-32 (stage 1) |
+| Explicit-yes gates with who/when recorded | `/devkit:plan` approval | ⏳ | P-33 (shared) |
+| Stakeholder answers verbatim + English translation | `grill` / `task` / `requirements-analyst` | ⏳ | P-34 (shared) |
+| Block `gh pr merge --admin` and self-approval | `block-force-push` hook | ⏳ | P-35 (shared) |
+| Open-PR back-pressure | `/devkit:task next` | ⏳ | P-36 (stage 1) |
+| Team metrics from GitHub data only | — | ⏳ | P-37 (stage 1) |
+| Production approval via GitHub Environment reviewers | `/devkit:deploy` | ⏳ | P-38 (stage 1) |
+| Machine-readable agent results | conventions Result block | ⏳ | P-39 (stage 2) |
+| Per-task worktree with isolated port and test DB | — | ⏳ | P-40 (stage 2) |
+| Dependency waves | `/devkit:plan` | ⏳ | P-41 (stage 2) |
+| Orchestrated run | — | ⏳ | P-42 (stage 2) |
+| Agents stay in their lane | plugin hook | ⏳ | P-43 (stage 2) |
+| Protected branches: GitHub protection + local template hook | `/devkit:check`, template hook | ⏳ | P-44 (stage 1) |
+| Platform CLI only through a read/write wrapper; user types secrets | `/devkit:deploy` | ⏳ | P-45 (stage 1, all platforms) |
+| Task state: native sub-issues/dependencies vs Projects board | — | ⏳ | P-46 (research before stage 2) |
+| Per-run dollar cap, large mechanical changes | `--max-budget-usd`, `/batch` | ⊘ | |
+| Railway-only scripts as they are | — | ✗ | generalized into P-45 |
+
 ### devkit only
 
 `/devkit:task` (BA task → SPEC with ACs → PR with evidence), `/devkit:check`, the `requirements-analyst` agent, and 4-layer bootstrap from requirements docs.
@@ -133,4 +163,5 @@ Practices from another team's seven-week report, used as an idea source. See `up
 | 2026-10-09 | v2.13.0 | Initial table | devkit 2.0.0 |
 | 2026-10-09 | v2.13.0 / v2.14.0 upcoming | P-1–P-11 proposed; P-12/P-13 skipped; P-1–P-8, P-11 applied | devkit 2.1.0 |
 | 2026-10-09 | v2.14.0 upcoming; llms.txt | Second pass: P-14 (security-scan), P-15 (hook diagnostics); see upstream/proposals/20261009b.md | — |
-| 2026-10-16 | v2.13.0 / v2.14.0 still upcoming | ClaudeKit unchanged; team-practices deck → P-17–P-25; see upstream/proposals/20261016.md | — |
+| 2026-10-16 | v2.13.0 / v2.14.0 still upcoming | ClaudeKit unchanged; team-practices deck → P-17–P-25; see upstream/proposals/20261016.md | devkit 2.2.0 |
+| 2026-10-18 | v2.13.0 / v2.14.0 still upcoming | ClaudeKit unchanged; `agile-squad` v0.6.2 → P-26–P-46 (two stages: shared queue, then squad); see upstream/proposals/20261018.md | — |
