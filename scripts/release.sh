@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage: scripts/release.sh <patch|minor|major> [--dry-run]
-# Bumps the version in plugin.json, finalizes CHANGELOG's [Unreleased] section, commits, and tags vX.Y.Z.
+# Bumps the version in plugin.json, finalizes CHANGELOG's [Unreleased] section, commits, and creates an annotated tag vX.Y.Z (so `git push --follow-tags` pushes it).
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
@@ -43,7 +43,7 @@ fs.writeFileSync('CHANGELOG.md', s);"
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   git add "$manifest" CHANGELOG.md
   git commit -q -m "chore(release): devkit v$next"
-  git tag "v$next"
+  git tag -a "v$next" -m "devkit v$next"
   echo "Committed and tagged v$next. Push with: git push --follow-tags"
 else
   echo "Version set to $next (not a git repo, so no commit/tag)."
