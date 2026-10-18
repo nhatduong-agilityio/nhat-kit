@@ -78,10 +78,10 @@ Status: ✅ done · ◐ partial · ⏳ planned · ⊘ use Claude Code built-in �
 | --- | --- | --- |
 | CLI `ck init` / `ck update` | marketplace + `claude plugin update` | ✅ |
 | Protective hooks (scout-block, guards) | `protect-files`, `block-force-push` hooks | ◐ |
-| Quality gate hooks, diagnostics | — | ⏳ | P-7: extend test-hooks.sh with LLM-judge step |
+| Quality gate hooks, diagnostics | `templates/hooks/check-before-commit.sh` | ◐ | P-7a: per-project hook runs the Quick check before `git commit`; P-7b (LLM judge in test-hooks.sh) dropped |
 | Hook Diagnostics Dashboard (CLI v3.36.0 upcoming) | `scripts/test-hooks.sh` | ✅ | P-15: per-case table (hook, case, exit, ms, first stderr line) in `scripts/test-hooks.sh` |
 | Statusline | — | ⏳ | |
-| 3-tier eval system (v2.14.0 upcoming) | — | ⏳ | P-7 covers the hooks layer |
+| 3-tier eval system (v2.14.0 upcoming) | — | ⏳ | P-7b dropped (2026-10-17); no eval layer planned |
 
 ### Claude Code built-ins (new, reviewed 2026-10-09)
 
