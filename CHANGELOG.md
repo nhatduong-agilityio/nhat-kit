@@ -4,6 +4,10 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ## [Unreleased]
 
+### Fixed
+
+- `scripts/release.sh` creates an annotated tag, so the suggested `git push --follow-tags` pushes it; the lightweight tag it made before was skipped, and v2.3.0 had to be pushed by hand.
+
 ## [2.3.0] - 2026-10-18
 
 ### Added
