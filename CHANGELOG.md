@@ -4,6 +4,10 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ## [Unreleased]
 
+### Changed
+
+- Scope: devkit is described as a kit for one engineer or a team sharing a GitHub issue queue, with squad orchestration as the next stage (README, plugin and marketplace descriptions, repo `CLAUDE.md`). `UPSTREAM.md` and `upstream/proposals/20261018.md` record the `agile-squad` review: P-26–P-46 in two stages.
+
 ## [2.4.0] - 2026-10-18
 
 ### Added

@@ -1,6 +1,6 @@
-# claude-kit — a personal engineer kit for Claude Code
+# claude-kit — an engineering kit for Claude Code, for solo engineers and teams
 
-The `nhat-kit` marketplace contains the **devkit 2.4.0** plugin: 18 commands, 10 subagents, 3 hooks (`protect-files`, `block-force-push`, `notify`), and 4-layer project templates. It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
+The `nhat-kit` marketplace contains the **devkit 2.4.0** plugin: 18 commands, 10 subagents, 3 hooks (`protect-files`, `block-force-push`, `notify`), and 4-layer project templates. It works for one engineer and for a team pulling from one shared GitHub issue queue (claims, plan ↔ tracker sync, PR report artifacts); squad orchestration is the next stage (`upstream/proposals/20261018.md`). It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
 
 ## Commands
 

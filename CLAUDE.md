@@ -1,6 +1,6 @@
 # claude-kit
 
-Personal marketplace `nhat-kit` containing the `devkit` plugin (an engineer kit for Claude Code). This repo is the kit's source code, not an app.
+Personal marketplace `nhat-kit` containing the `devkit` plugin, an engineering kit for Claude Code used by one engineer or by a team sharing a GitHub issue queue; squad orchestration is the next stage (`upstream/proposals/20261018.md`). This repo is the kit's source code, not an app.
 
 # Layout
 - `plugins/devkit/skills/<name>/SKILL.md` — the `/devkit:<name>` commands
@@ -17,8 +17,9 @@ Personal marketplace `nhat-kit` containing the `devkit` plugin (an engineer kit 
 - Release: `/release <patch|minor|major>`
 
 # Rules
+- Design for teams: state that others need (claims, approvals, task status) lives in GitHub (issues, labels, comments, PRs), never only on one machine.
 - Everything in this repo is written in English.
-- Write all content from scratch. ClaudeKit is an idea source only, through its public docs; never copy its wording or code. Record comparisons in `UPSTREAM.md`.
+- Write all content from scratch. ClaudeKit (through its public docs) and other upstream sources such as `agile-squad` are idea sources only; never copy their wording or code. Record comparisons in `UPSTREAM.md`.
 - Skills and agents are imperative and short. `description` stays under 300 characters and says when to use the skill.
 - Skills with side effects (commit, push, writing many files) set `disable-model-invocation: true`.
 - Adding or renaming a skill/agent: update `README.md`, `UPSTREAM.md`, and `[Unreleased]` in `CHANGELOG.md`.
