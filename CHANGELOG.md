@@ -4,6 +4,8 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-10-19
+
 ### Added
 
 - `scripts/render-report.mjs` (Node built-ins only) builds the PR report artifact from `report.json` (schema: `references/report.md`). It renders the required contents (ACs with ✅/⚠️/❌ and "X/Y ACs met", How it was verified with long output in `<details>`, Screenshots / GIF or `None (no UI change)`, Manual test steps, Risks) and adds inline charts when the data exists: change map by area, gate pills, tests before/after, review fixed vs remaining, metrics before/after, plus a mermaid diagram. The section order follows the kind of change. All input is escaped, and data it would have to invent (missing metric values, a missing AC status, non-relative image paths) is rejected. The required sections always render, with placeholders. 15 `node --test` cases run in `/release`.
