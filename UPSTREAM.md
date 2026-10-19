@@ -114,6 +114,7 @@ Practices from another team's seven-week report, used as an idea source. See `up
 | GitHub issues as AI work queue (file, claim, fix, release) | `/devkit:issue` + `/devkit:task #N\|next` | ✅ | P-20 |
 | Issues/PRs a stranger can act on | `ISSUE_TEMPLATE/` forms + `pull_request_template.md` | ✅ | P-21 |
 | Verification evidence as an artifact (screenshots, GIF) | `ship` gate 5 / `task` step 7 + `ui-verifier` | ✅ | P-22; generalized to every PR as "PR report artifact" (follow-up, not re-proposed) |
+| Capture the output as an artifact (diagrams, charts, screenshots) | PR report artifact rendered by `render-report.mjs` | ✅ | charts and diagram added to the PR report; section order by kind of change |
 | Living CLAUDE.md; rules in files skills read | `templates/CLAUDE.md` | ✅ | P-23 |
 | Personal memory for repeated corrections | `retro` | ✅ | P-24 |
 | Markdown plan ↔ tracker two-way sync | `/devkit:plan sync` | ✅ | P-25 |

@@ -13,6 +13,7 @@ Personal marketplace `nhat-kit` containing the `devkit` plugin, an engineering k
 # Commands
 - Validate: `claude plugin validate plugins/devkit --strict && claude plugin validate .`
 - Test hooks: `scripts/test-hooks.sh`
+- Test the PR report renderer: `node --test plugins/devkit/scripts/render-report.test.mjs`
 - Try the plugin without installing: `claude --plugin-dir plugins/devkit`
 - Release: `/release <patch|minor|major>`
 

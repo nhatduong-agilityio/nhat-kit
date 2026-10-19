@@ -5,6 +5,7 @@ CLAUDE.local.md
 .claude/worktrees/
 
 # devkit UI evidence (published as an artifact, not committed)
+.claude/reports/
 **/evidence/
 .playwright-mcp/
 
