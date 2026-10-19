@@ -29,6 +29,7 @@ if [ "$dry" = "--dry-run" ]; then echo "(dry run, nothing written)"; exit 0; fi
 claude plugin validate plugins/devkit --strict >/dev/null
 claude plugin validate . >/dev/null
 scripts/test-hooks.sh >/dev/null
+node --test plugins/devkit/scripts/render-report.test.mjs >/dev/null
 
 node -e "
 const fs=require('fs');const p='$manifest';

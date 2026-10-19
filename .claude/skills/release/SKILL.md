@@ -13,6 +13,7 @@ Bump level: `$ARGUMENTS` (empty → propose a level based on `[Unreleased]` in `
 2. Checks:
    - `claude plugin validate plugins/devkit --strict` and `claude plugin validate .`
    - Hook scripts: run `scripts/test-hooks.sh`.
+   - Report renderer: run `node --test plugins/devkit/scripts/render-report.test.mjs`.
    - Every skill/agent name referenced by another skill/agent exists (`grep -rn "devkit:" plugins/devkit`).
    - Evals: `claude plugin eval plugins/devkit --tag core --trust-plugin --scaffold --ablation none --runs 1 --max-cost-usd 3 --no-publish --allow-tools Write Edit`. A red case → stop and show its report. Also run the `needs-bash` command from `plugins/devkit/evals/README.md` when the machine's Bash sandbox can start; otherwise say it was skipped and why.
 3. Run `scripts/release.sh <level>`: bumps `version` in `plugin.json`, turns `[Unreleased]` into `[x.y.z] - <date>`, commits, and tags `vX.Y.Z`.

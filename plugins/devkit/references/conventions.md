@@ -71,6 +71,7 @@ Never report "done" without evidence. Valid evidence:
 Used by `/devkit:ship` (gates 5/8), `/devkit:task` (steps 7/8), and `/devkit:git pr` — for every PR, not only ones visible in the UI.
 
 - **Builder & timing**: **Artifact** (main session only; subagents and headless runs don't have the Artifact tool). The orchestrating skill builds and publishes the whole report before delegating to `git-manager`; `git-manager` never calls the Artifact tool itself.
+- **How to build it**: write `report.json` (schema: `${CLAUDE_PLUGIN_ROOT}/references/report.md`), taking every number from a command's output (`git diff --numstat <base>...HEAD`, the test run, the reviewer's report), never from memory. Render it with `node "${CLAUDE_PLUGIN_ROOT}/scripts/render-report.mjs" report.json > report.html`, then publish `report.html` with the screenshots as `files`. Exit 1 means the JSON is invalid; fix the JSON, not the HTML. Without `node`, build the page by hand following `report.md`.
 - **Title**: `<ID or slug> PR report`.
 - **Contents**:
   - Summary — the same What/Why as the PR body.
@@ -82,7 +83,7 @@ Used by `/devkit:ship` (gates 5/8), `/devkit:task` (steps 7/8), and `/devkit:git
   - Risks and impact.
   - The commit SHA.
 - **Content (scrubbing)**: use test accounts and test data; don't paste a screenshot, a verification-output line, or a commit SHA that exposes a secret, token, internal path, or real personal data as-is — redact or omit it and say why. This scrubbing rule covers the whole report, not only screenshots.
-- **Visualization**: ✅/⚠️/❌ status per AC row, the "X/Y ACs met" line, and `<details>` for long blocks — not charts or a charting library. Whoever builds this artifact for real should follow the `artifact-design` skill's own guidance for structuring an Artifact page.
+- **Visualization**: ✅/⚠️/❌ status per AC row, the "X/Y ACs met" line, and `<details>` for long blocks. On top of that, the renderer draws inline charts (no library) when the data exists: the change map (lines added and removed per area), gate pills, tests before/after, review findings fixed vs remaining per severity, and metrics before/after, plus a mermaid diagram of the changed flow. The section order follows the kind of change (`feat`, `fix`, `perf`, `refactor`, `docs`/`chore`/…), as set out in `report.md`.
 - **PR body**: slims to `## Summary` (1-3 sentences) → `Closes #` / `Refs:` → `## Full report` (one line: the artifact link, covering the Acceptance-criteria table, How-it-was-verified output, Screenshots/GIF, and Manual test steps) → `## Risks and impact` (stays its own inline section — not moved into the artifact) → `## Checklist`. `Closes #N` must stay written in the literal PR body: GitHub only parses its auto-close keywords from the PR description itself, never from a linked artifact page.
 - **Fallback (no Artifact tool)**: applies to the whole report, not just screenshots. Don't slim the body: alongside the always-inline `## Risks and impact`, also write the full Acceptance-criteria table, How it was verified, Screenshots/GIF, and Manual test steps inline — same shape as before this change.
 
