@@ -6,11 +6,13 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ### Added
 
+- `scripts/queue-status.sh` reports the shared queue's state from `gh`: open non-draft PRs against `max_open_prs`, and stale claims (older than `claim_ttl_minutes`, no release, no open PR closing the issue). `templates/docs/devkit.md` gains both keys (P-30, P-36).
 - `plugins/devkit/evals/`: 5 behavior cases for `claude plugin eval`, with scaffolded fixtures, tool-call and rubric graders. `core` cases (no Bash) cover review delegating to `code-reviewer`, cook asking to approve a draft plan, and plan sync refusing a draft. `needs-bash` cases cover the ship size gate (P-27) and the cook retry tier (P-29). `/release` runs the core cases (P-26).
 - `scripts/pr-size.sh` counts the lines and files a change touches against a base (committed, uncommitted, and untracked; lockfiles, snapshots, and build output excluded) and `templates/docs/devkit.md`, the project settings doc devkit skills read at run time (`pr_max_lines` 300, `pr_max_files` 10, `pr_size_exclude`) (P-27).
 
 ### Changed
 
+- `/devkit:task next` runs `queue-status.sh` first: it suggests reviewing when open PRs are at the limit (going on only if the user says so) and offers stale claims for takeover by the user; conventions define a stale claim and back-pressure (P-30, P-36).
 - `/devkit:ship` gate 1 and `/devkit:task` stop before the PR when the change is over the `docs/devkit.md` limits and propose a split (continue only on the user's word, noted in Risks and impact); `/devkit:review` reports it as a Warning; `/devkit:bootstrap` copies `docs/devkit.md`, adding only missing keys; conventions name `docs/devkit.md` as the home for project-tunable settings (P-27).
 - `/devkit:cook` and `/devkit:task` retry sent-back work one model tier up (`haiku` → `sonnet` → `opus`) via the Agent `model` override: a red verify or a review/test fix sent back to `fullstack-developer` runs on `opus`; first attempts keep the agent's default; conventions gain "Retry one tier up"; not yet verified by an eval, see P-26 (P-29).
 - `block-force-push` hook also blocks `gh pr merge --admin` (bypasses branch protection) and `gh pr review --approve`/`-a` (an agent approving a PR), using the same tokenizer, so quoted text, heredocs, and PR bodies that mention these flags still pass; a normal `gh pr merge` is allowed (P-35).
