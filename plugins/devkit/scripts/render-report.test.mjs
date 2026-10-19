@@ -35,13 +35,15 @@ const full = {
 };
 const sections = (html) => [...html.matchAll(/<section id="([a-z]+)"/g)].map((m) => m[1]);
 
-test('minimal report keeps the always-present Screenshots section and skips the rest', () => {
+test('minimal report shows every required section with a placeholder and no charts', () => {
   const html = render(minimal);
   assert.match(html, /<title>T-9 PR report<\/title>/);
-  assert.match(html, /Tiny change/);
-  assert.deepEqual(sections(html), ['ui']);
+  assert.match(html, /<meta charset="utf-8">/);
+  assert.doesNotMatch(html, /fonts\.googleapis/);
+  assert.deepEqual(sections(html), ['summary', 'acs', 'verified', 'ui', 'steps', 'risks']);
   assert.match(html, /None \(no UI change\)/);
-  assert.match(html, /Ready/);
+  assert.match(html, /None \(no acceptance criteria given\)/);
+  assert.match(html, /<h2 id="risks-h">Risks and impact<\/h2>/);
 });
 
 test('full feat report has every section in feat order', () => {
@@ -75,17 +77,37 @@ test('fix kind leads with symptom, cause, fix and highlights the regression test
   const html = render({ ...minimal, kind: 'fix', summary: 'Fixes Y.',
     fix: { symptom: 'Crash on save', cause: 'a.js:3', fix: 'Guard null', regression_test: 'save.test.js' },
     tests: { before: { pass: 3, fail: 1 }, after: { pass: 4, fail: 0 } }, areas: full.areas });
-  assert.deepEqual(sections(html), ['summary', 'verification', 'ui', 'changes']);
+  assert.deepEqual(sections(html), ['summary', 'acs', 'verification', 'verified', 'ui', 'steps', 'changes', 'risks']);
   assert.match(html, /Symptom<\/span><span>Crash on save/);
   assert.match(html, /Regression test/);
 });
 
-test('docs kind drops the diagram, gate/test charts and metrics', () => {
-  assert.deepEqual(sections(render({ ...full, kind: 'docs' })), ['summary', 'acs', 'changes', 'verified', 'ui', 'steps', 'review', 'risks']);
+test('docs kind leads with its own sections and moves other data to the end, before risks', () => {
+  assert.deepEqual(sections(render({ ...full, kind: 'docs' })),
+    ['summary', 'acs', 'changes', 'verified', 'ui', 'steps', 'review', 'diagram', 'verification', 'metrics', 'risks']);
 });
 
-test('refactor says behavior unchanged', () => {
-  assert.match(render({ ...full, kind: 'refactor' }), /Behavior unchanged/);
+test('refactor says behavior unchanged only when the tests show it', () => {
+  const same = { before: { pass: 12, fail: 0 }, after: { pass: 12, fail: 0 } };
+  assert.match(render({ ...full, kind: 'refactor', tests: same }), /Behavior unchanged/);
+  const broke = { before: { pass: 10, fail: 0 }, after: { pass: 3, fail: 5 } };
+  const html = render({ ...full, kind: 'refactor', tests: broke });
+  assert.doesNotMatch(html, /Behavior unchanged/);
+  assert.match(html, /−2 tests|-2 tests/);
+});
+
+test('a kind sets the order but never hides data: a docs report with a failing gate shows it', () => {
+  const html = render({ ...minimal, kind: 'docs', gates: [{ name: 'Tests', status: 'fail' }], tests: { after: { pass: 1, fail: 2 } },
+    metrics: [{ name: 'Size', before: 1, after: 2, better: 'lower' }] });
+  assert.match(html, /Needs attention/);
+  assert.ok(sections(html).includes('verification'));
+  assert.ok(sections(html).includes('metrics'));
+  assert.equal(sections(html).at(-1), 'risks');
+});
+
+test('hotfix renders like fix', () => {
+  const html = render({ ...minimal, kind: 'hotfix', fix: { symptom: 'Down', cause: 'a.js:1', fix: 'Revert' } });
+  assert.match(html, /Symptom<\/span><span>Down/);
 });
 
 test('every string is escaped', () => {
@@ -124,4 +146,24 @@ test('invalid input exits 1 with a message', () => {
   const kind = run({ ...minimal, kind: 'wip' });
   assert.equal(kind.status, 1);
   assert.match(kind.stderr, /unknown kind/);
+});
+
+test('data that would be invented or unsafe is rejected with a clear message', () => {
+  const cases = [
+    [{ ...minimal, kind: 'constructor' }, /unknown kind/],
+    [{ ...minimal, acs: {} }, /"acs" must be an array/],
+    [{ ...minimal, metrics: [{ name: 'lat', unit: 'ms', after: 50, better: 'lower' }] }, /needs measured numbers/],
+    [{ ...minimal, metrics: [{ name: 'lat', before: 1, after: 2 }] }, /better must be lower or higher/],
+    [{ ...minimal, areas: [{ name: 'src', files: 1, added: -5, removed: 0 }] }, /whole number/],
+    [{ ...minimal, acs: [{ id: 'AC1', text: 't' }] }, /status must be pass, fail, or assumption/],
+    [{ ...minimal, acs: [{ id: 'AC1', text: 't', status: 'pass', images: ['/Users/me/secret.png'] }] }, /relative path/],
+    [{ ...minimal, acs: [{ id: 'AC1', text: 't', status: 'pass', images: ['javascript:alert(1)'] }] }, /relative path/],
+    [{ ...minimal, acs: [{ id: 'AC1', text: 't', status: 'pass', images: ['../x.png'] }] }, /relative path/],
+  ];
+  for (const [data, msg] of cases) {
+    const res = run(data);
+    assert.equal(res.status, 1, JSON.stringify(data));
+    assert.match(res.stderr, msg);
+    assert.doesNotMatch(res.stderr, /at .*render-report\.mjs:\d+/);
+  }
 });

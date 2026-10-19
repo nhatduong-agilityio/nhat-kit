@@ -56,7 +56,7 @@ If on the main branch, create a branch following the convention in CLAUDE.md (de
 ## 7. Verify and review
 
 - Run the project's `verify` skill (if any) or `/verify`.
-- Build the PR report content per the conventions' "PR report artifact" section. For UI changes, collect its Screenshots/GIF sub-part: have the `ui-verifier` subagent (if the project has one) check each AC in a browser and save screenshots to `docs/tasks/<TASK_ID>-<slug>/evidence/`; if there is no `ui-verifier`, or it reports no browser tools, do the same yourself with the browser tools you have (Playwright MCP or `/claude-in-chrome`). Publish the whole report as one artifact plus a condensed checklist summary (one line per PR-template checklist item, evidenced or not), or keep the fallback full content when no Artifact tool is available.
+- Collect the PR report's evidence per the conventions' "PR report artifact" section (rendered and published in step 8, after the commit). For UI changes, collect its Screenshots/GIF sub-part: have the `ui-verifier` subagent (if the project has one) check each AC in a browser and save screenshots to `docs/tasks/<TASK_ID>-<slug>/evidence/`; if there is no `ui-verifier`, or it reports no browser tools, do the same yourself with the browser tools you have (Playwright MCP or `/claude-in-chrome`).
 - Have the `devkit:code-reviewer` subagent review the diff against the SPEC. Fix only findings that affect correctness or ACs (a fix sent back to a subagent follows "Retry one tier up"); list the rest as optional.
 - Repeat until every AC has evidence (test output, command and result, screenshot).
 
@@ -65,7 +65,8 @@ If on the main branch, create a branch following the convention in CLAUDE.md (de
 - Update the SPEC: mark each AC as met with its evidence; record the assumptions used.
 - Commit through the `devkit:git-manager` subagent (operation `commit`, `Refs: <TASK_ID>`).
 - Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/pr-size.sh <base>` (`<base>` = the branch the PR will target, usually the default branch); exit 1 → report it and ask; over the limit → propose a split and continue only if the user says so (note it in Risks and impact).
-- **Ask before pushing.** Then have `devkit:git-manager` run `push` and `pr` using `.github/pull_request_template.md`, passing either (a) the report artifact link, the condensed checklist summary, and the Risks-and-impact text, or (b), when no Artifact tool was available in step 7, the full report content for the fallback inline body.
+- Write `report.json` with the review findings and test counts, render and publish it per the conventions (plus a condensed checklist summary, one line per PR-template checklist item, evidenced or not), or keep the fallback full content when no Artifact tool is available.
+- **Ask before pushing.** Then have `devkit:git-manager` run `push` and `pr` using `.github/pull_request_template.md`, passing either (a) the report artifact link, the condensed checklist summary, and the Risks-and-impact text, or (b), when no Artifact tool was available, the full report content for the fallback inline body.
 - Update the item's status in `docs/BACKLOG.md` if present.
 - Delete `.claude/current-task`.
 - End with: the PR link, either a reminder to share the report artifact with the reviewers or, if no Artifact tool was available, a note that the full report is inline in the PR body, which ACs still rest on assumptions the BA must confirm, and a suggestion to run `/devkit:retro` if the user had to correct Claude's direction during the task.
