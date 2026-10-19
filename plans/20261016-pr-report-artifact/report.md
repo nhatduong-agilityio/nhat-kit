@@ -35,3 +35,11 @@ The `/devkit:review #24` findings were 0 Critical, 9 Warning, 9 Optional. Fixed:
 - **W7:** mermaid is documented by the Artifact platform as native; seeing it drawn in a published artifact is left to the user.
 
 Tests: 15/15. Skipped: O5 (the `artifact-design` pointer: the hand-built fallback follows `report.md`), O6 (renaming the schema file: churn across docs for little gain), O8 (`Closes #`: handled in the PR body).
+
+## After release 2.5.0: open items resolved (2026-10-19)
+- **AC4, the end-to-end run**, done headless with the repo plugin (installed devkit disabled), no remote, push and `gh` blocked. `/devkit:ship docs/tasks/T-2-blank-name/SPEC.md main` ran on a fixture with a real `fix` commit.
+  - **First run:** gate 5 correctly **failed**. The fixture page loaded an ES module as a classic script, a fixture bug the gate caught. It was fixed with a `type="module"` commit.
+  - **Second run:** all 8 gates ran, and `evidence/report.json` and `report.html` were written and rendered with `render-report.mjs` (exit 0). The PR body used main's inline fallback, since headless runs have no Artifact tool.
+  - The `report.json` data matches the real state: `commit` = `632c616` = `HEAD` after review and the commit; `areas` equal `git diff --numstat main...HEAD` (page +3/−2, test +4/−0); `tests.before` is left out (no base run); review counts come from the reviewer; the section order is `fix`.
+- **`needs-bash` evals:** both pass (`cook-retries-tier-up` 1.00, `ship-stops-oversized` 1.00, $0.67). The 32 symlinks under `~/.docker` (cli-plugins, and Model Runner dylib aliases) were moved out for the run only and restored to their exact paths and targets (32/32 verified; `docker buildx version` works). The core evals had passed at release (3/3, $0.48).
+- **Mermaid rendering:** not visible from the CLI (no browser tools in this session); the user checks it in the artifact.
