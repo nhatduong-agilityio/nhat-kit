@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Render a devkit PR report page from report.json (schema: references/report.md).
 // Usage: node render-report.mjs <report.json> > report.html   — Node built-ins only.
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 // The conventions' "PR report artifact" contents are always present: acs, verified, ui (screenshots or
 // "None (no UI change)"), steps, risks. Charts (changes, verification, review, metrics) and the diagram
@@ -13,6 +14,11 @@ const KINDS = {
   refactor: ['summary', 'acs', 'changes', 'verification', 'verified', 'diagram', 'ui', 'steps', 'review', 'risks'],
 };
 for (const k of ['docs', 'chore', 'ci', 'build', 'test']) KINDS[k] = ['summary', 'acs', 'changes', 'verified', 'ui', 'steps', 'review', 'risks'];
+KINDS.hotfix = KINDS.fix;
+// A kind sets the order, never what is hidden: sections it doesn't list still render (before Risks) when they have data.
+const ALL = ['summary', 'acs', 'changes', 'diagram', 'verification', 'verified', 'ui', 'steps', 'review', 'metrics', 'risks'];
+const orderFor = (kind) => { const o = KINDS[kind]; const extra = ALL.filter((n) => !o.includes(n)); return [...o.slice(0, -1), ...extra, o[o.length - 1]]; };
+const NONE = (text) => `<p class="note">${text}</p>`;
 const AC_MARK = { pass: '✅ met', assumption: '⚠️ assumption', fail: '❌ failed' };
 const DETAILS_AFTER_LINES = 8;
 
@@ -35,7 +41,24 @@ function load(path) {
   try { data = JSON.parse(text); } catch (e) { fail(`invalid JSON in ${path}: ${e.message}`); }
   if (!data || typeof data !== 'object' || Array.isArray(data)) fail('report.json must be an object');
   for (const key of ['id', 'title', 'commit']) if (!data[key]) fail(`missing required field "${key}"`);
-  if (data.kind && !KINDS[data.kind]) fail(`unknown kind "${data.kind}" (use ${Object.keys(KINDS).join(', ')})`);
+  if (data.kind && !Object.hasOwn(KINDS, data.kind)) fail(`unknown kind "${data.kind}" (use ${Object.keys(KINDS).join(', ')})`);
+  for (const key of ['areas', 'gates', 'acs', 'verified', 'manual_steps', 'metrics', 'risks']) {
+    if (data[key] !== undefined && !Array.isArray(data[key])) fail(`"${key}" must be an array`);
+  }
+  const count = (v) => Number.isInteger(v) && v >= 0;
+  (data.areas || []).forEach((a, i) => {
+    for (const k of ['files', 'added', 'removed']) if (!count(a[k])) fail(`areas[${i}].${k} must be a whole number ≥ 0 (from git diff --numstat)`);
+  });
+  (data.acs || []).forEach((a, i) => {
+    if (!Object.hasOwn(AC_MARK, a.status)) fail(`acs[${i}].status must be pass, fail, or assumption`);
+    (a.images || []).forEach((src) => {
+      if (/^[a-z][a-z0-9+.-]*:|^\/|^\\|\.\./i.test(String(src))) fail(`acs[${i}].images: "${src}" must be a relative path inside the report folder`);
+    });
+  });
+  (data.metrics || []).forEach((m, i) => {
+    if (!Number.isFinite(m.before) || !Number.isFinite(m.after)) fail(`metrics[${i}] ("${m.name}") needs measured numbers for both before and after`);
+    if (m.better !== 'lower' && m.better !== 'higher') fail(`metrics[${i}].better must be lower or higher`);
+  });
   return data;
 }
 
@@ -59,13 +82,13 @@ const S = {
     const parts = [];
     if (r.summary) parts.push(`<p class="lead">${esc(r.summary)}</p>`);
     if (r.why) parts.push(`<p><span class="label">Why</span> ${esc(r.why)}</p>`);
-    if (r.kind === 'fix' && r.fix) {
+    if ((r.kind === 'fix' || r.kind === 'hotfix') && r.fix) {
       const f = r.fix;
       parts.push(`<ol class="fixflow">${[['Symptom', f.symptom], ['Cause', f.cause], ['Fix', f.fix]]
         .filter(([, v]) => v).map(([k, v]) => `<li><span class="label">${k}</span><span>${esc(v)}</span></li>`).join('')}</ol>`);
       if (f.regression_test) parts.push(`<p class="guard"><span class="label">Guarded by</span> <code>${esc(f.regression_test)}</code></p>`);
     }
-    return parts.length ? section('summary', 'Summary', parts.join('')) : '';
+    return section('summary', 'Summary', parts.length ? parts.join('') : NONE('Not provided'));
   },
 
   changes(r) {
@@ -97,21 +120,22 @@ const S = {
         <span class="bar" role="img" aria-label="${label}: ${num(t.pass)} passing, ${num(t.fail)} failing"><span class="seg add" style="width:${pct(num(t.pass), max)}%"></span><span class="seg rem" style="width:${pct(num(t.fail), max)}%"></span></span>
         <span class="bar-val">${num(t.pass)} pass · ${num(t.fail)} fail</span></div>`;
       const delta = num(a.pass) + num(a.fail) - (num(b.pass) + num(b.fail));
-      const caption = r.kind === 'refactor' ? 'Behavior unchanged: the same tests pass before and after.' : `${delta >= 0 ? '+' : ''}${delta} tests`;
+      const unchanged = r.tests.before && r.tests.after && num(b.pass) === num(a.pass) && num(a.fail) === 0;
+      const caption = r.kind === 'refactor' && unchanged ? 'Behavior unchanged: the same tests pass before and after.' : `${delta >= 0 ? '+' : ''}${delta} tests`;
       parts.push(`<div class="bars">${r.tests.before ? row('Before', b) : ''}${r.tests.after ? row('After', a) : ''}</div><p class="note">${esc(caption)}${r.tests.command ? ` · <code>${esc(r.tests.command)}</code>` : ''}</p>`);
     }
-    if (r.kind === 'fix' && r.fix?.regression_test) parts.push(`<p class="guard"><span class="label">Regression test</span> <code>${esc(r.fix.regression_test)}</code></p>`);
+    if ((r.kind === 'fix' || r.kind === 'hotfix') && r.fix?.regression_test) parts.push(`<p class="guard"><span class="label">Regression test</span> <code>${esc(r.fix.regression_test)}</code></p>`);
     return parts.length ? section('verification', 'Verification', parts.join('')) : '';
   },
 
   acs(r) {
-    if (!has(r.acs)) return '';
+    if (!has(r.acs)) return section('acs', 'Acceptance criteria', NONE('None (no acceptance criteria given)'));
     const rows = r.acs.map((a) => `<tr><th scope="row">${esc(a.id)}</th><td>${esc(a.text)}</td><td class="mark">${esc(AC_MARK[a.status] || a.status || 'n/a')}</td><td>${esc(a.evidence)}</td></tr>`).join('');
     return section('acs', 'Acceptance criteria', `<div class="scroll"><table><thead><tr><th>AC</th><th>Criterion</th><th>Status</th><th>Evidence</th></tr></thead><tbody>${rows}</tbody></table></div>`);
   },
 
   verified(r) {
-    if (!has(r.verified)) return '';
+    if (!has(r.verified)) return section('verified', 'How it was verified', NONE('Not provided'));
     const blocks = r.verified.map((v) => {
       const out = String(v.output ?? '');
       const pre = `<pre class="out">${esc(out)}</pre>`;
@@ -122,7 +146,7 @@ const S = {
   },
 
   steps(r) {
-    return has(r.manual_steps) ? section('steps', 'Manual test steps', `<ol>${r.manual_steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>`) : '';
+    return section('steps', 'Manual test steps', has(r.manual_steps) ? `<ol>${r.manual_steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>` : NONE('None'));
   },
 
   ui(r) {
@@ -151,7 +175,7 @@ const S = {
   metrics(r) {
     if (!has(r.metrics)) return '';
     const cards = r.metrics.map((m) => {
-      const b = num(m.before), a = num(m.after), max = Math.max(Math.abs(b), Math.abs(a), 1);
+      const b = m.before, a = m.after, max = Math.max(Math.abs(b), Math.abs(a), 1);
       const better = m.better === 'higher' ? a > b : a < b;
       const same = a === b;
       const change = b !== 0 ? `${a >= b ? '+' : '−'}${fmt(Math.abs(((a - b) / b) * 100))}%` : `${a >= b ? '+' : '−'}${fmt(Math.abs(a - b))}`;
@@ -165,7 +189,7 @@ const S = {
   },
 
   risks(r) {
-    return has(r.risks) ? section('risks', 'Risks', `<ul>${r.risks.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`) : '';
+    return section('risks', 'Risks and impact', has(r.risks) ? `<ul>${r.risks.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : NONE('None stated'));
   },
 };
 
@@ -239,7 +263,7 @@ ol { margin: 0; padding-left: 20px; max-width: 70ch; }
 export function render(r) {
   const kind = r.kind || 'feat';
   const [state, label] = overall(r);
-  const body = KINDS[kind].map((name) => S[name]({ ...r, kind })).filter(Boolean).join('\n');
+  const body = orderFor(kind).map((name) => S[name]({ ...r, kind })).filter(Boolean).join('\n');
   const meta = [
     `<span>${esc(kind)}</span>`,
     r.branch ? `<span>${esc(r.branch)}${r.base ? ` → ${esc(r.base)}` : ''}</span>` : '',
@@ -249,7 +273,7 @@ export function render(r) {
   const met = (r.acs || []).filter((a) => a.status === 'pass').length;
   const acLine = has(r.acs) ? `<p class="acline">${met}/${r.acs.length} ACs met</p>` : '';
   return `<title>${esc(r.id)} PR report</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap">
+<meta charset="utf-8">
 <style>${CSS}</style>
 <main>
 <header>
@@ -265,6 +289,7 @@ ${body}
 `;
 }
 
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('render-report.mjs')) {
+const isMain = (() => { try { return Boolean(process.argv[1]) && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; } })();
+if (isMain) {
   process.stdout.write(render(load(process.argv[2])));
 }

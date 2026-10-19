@@ -1,6 +1,6 @@
 # Report: PR report artifact (in progress)
 
-- Done:
+- Done (on the original branch `feat/pr-report`; the `Report:` line, the PR-template line and the `git-manager`/`ship`/`task` wiring below were **superseded**, see "Reconciled with main"):
   - Phase 0: PR #7 merged; branch `feat/pr-report`.
   - Phase 1: `references/report.md`, `scripts/render-report.mjs`, 10/10 tests; one visual check (light, dark, true 400 px); sample published at https://claude.ai/artifact/JUw7aXZFCcAwWNF7KEjwF8.
   - Phase 2: conventions "PR report" section; UI evidence now the report's `#ui` section; Directories row.
@@ -19,3 +19,19 @@ While this branch waited, `main` shipped its own "PR report artifact" for every 
 - **Changed in main's conventions:** the build step (write `report.json`, render, publish), and "Visualization" now allows the inline charts.
 - **Dropped:** this branch's `Report:` line and its `git-manager`, `ship`, `task` and `git pr` wiring, which main already covers in its own way. The original branch `feat/pr-report` (`00eb6b7`) is kept locally only.
 - **Still open:** the Phase 4 runs (headless `fix` and `docs` dry runs, and the interactive `/devkit:ship`) against main's flow.
+
+## Review fixes on PR #24 (2026-10-19)
+The `/devkit:review #24` findings were 0 Critical, 9 Warning, 9 Optional. Fixed:
+- **W1:** the report is rendered and published after the review and the last commit (`ship` gate 8, `task` step 8). Evidence is still collected at gate 5 / step 7.
+- **W2:** a kind sets the order but never hides data; other sections with data render before Risks and impact.
+- **W3:** `hotfix` is accepted and renders like `fix`.
+- **W4:** "Behavior unchanged" only appears when the same tests pass before and after.
+- **W5, W8, O2, O3:** the renderer rejects invented or unsafe data with a clear message. That covers missing metric values or `better`, bad line counts, a missing AC status, non-relative image paths, prototype-key kinds, and non-array fields.
+- **W6:** the required sections always render, with placeholders; the heading is now "Risks and impact".
+- **O1:** a robust check for whether the script is being run directly.
+- **O4:** a charset meta and no external font request.
+- **O7, O9:** this note, and `mkdir -p`.
+- **W9:** the PR body states "oversized".
+- **W7:** mermaid is documented by the Artifact platform as native; seeing it drawn in a published artifact is left to the user.
+
+Tests: 15/15. Skipped: O5 (the `artifact-design` pointer: the hand-built fallback follows `report.md`), O6 (renaming the schema file: churn across docs for little gain), O8 (`Closes #`: handled in the PR body).
