@@ -126,6 +126,8 @@ Comments (first line exactly as shown, so they can be found with a search):
 Rules:
 - Claim before writing the SPEC: add `in-progress`, post the claim comment, then re-read the comments. If another host's claim comment is newer than the last release and older than yours, the earlier claim wins: release yours and stop.
 - An issue labelled `in-progress` belongs to the host in its latest claim. Take it over only when the user says so, and say so in your own claim comment.
+- A claim is **stale** when it is older than `claim_ttl_minutes` in the project's `docs/devkit.md` (default 120), no release follows it, and no open PR says `Closes/Fixes/Resolves #N`; an issue whose claims are all released but which still has `in-progress` counts as stale too. `next` offers stale claims; it never takes them over on its own.
+- **Back-pressure:** when open non-draft PRs reach `max_open_prs` (default 5; 0 = off), `next` suggests reviewing one first. `scripts/queue-status.sh` computes both.
 - `gh issue list` can lag a few seconds behind changes. Read a single issue's labels and comments with `gh issue view` (no lag), and treat the duplicate check as best effort.
 - Never close a queue issue by hand. It closes when the PR with `Closes #N` merges.
 - Whenever the work stops without a PR (a blocking question, the user stops, it can't be done), release: remove `in-progress` and post the release comment. Leave the issue open with its `ai` label, so it goes back to the queue.

@@ -3,7 +3,7 @@ name: task
 description: Take a task from the BA (text, file, GitHub issue, Jira key, or link) through spec → plan → code → verify → review → PR, following the project's standards.
 argument-hint: "<task text | file path | #issue | next | JIRA-123 | URL>"
 disable-model-invocation: true
-allowed-tools: Bash(git status *) Bash(git diff *) Bash(git log *) Bash(gh issue view *) Bash(gh issue list *) Bash(gh pr view *) Bash(bash */pr-size.sh *)
+allowed-tools: Bash(git status *) Bash(git diff *) Bash(git log *) Bash(gh issue view *) Bash(gh issue list *) Bash(gh pr view *) Bash(bash */pr-size.sh *) Bash(bash */queue-status.sh *)
 ---
 
 # BA task → PR
@@ -16,7 +16,7 @@ Conventions: `${CLAUDE_PLUGIN_ROOT}/references/conventions.md` (GitHub issues: i
 
 ## 1. Intake — get the task content
 
-- `next` → pick from the queue: `gh issue list --label ai --state open --limit 100 --json number,title,labels,createdAt`, drop issues labelled `in-progress`, sort by severity (`critical`, `high`, `medium`, `low`, none) then oldest. Show the top 3 with `AskUserQuestion`, the first recommended; the choice confirms the claim. An empty queue → say so and stop.
+- `next` → first run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/queue-status.sh`: `pressure=over` → say how many PRs wait for review, suggest `/devkit:review #N` for the `review=` numbers, and go on only if the user says so; exit 1 → say why and continue without it. Then pick from the queue: `gh issue list --label ai --state open --limit 100 --json number,title,labels,createdAt`, drop issues labelled `in-progress`, sort by severity (`critical`, `high`, `medium`, `low`, none) then oldest. Show at most 4 options with `AskUserQuestion`: queue items first (the first recommended), then stale rows ("stale claim · host · N min") in the remaining slots; list any others in text. The choice confirms the claim; picking a stale row is the user's word for the takeover: re-read the issue with `gh issue view`, then say so in the claim comment (takeover rule). No free issues and no stale rows → say so and stop.
 - `#123` or a GitHub issue URL → `gh issue view`.
 - **Claim** any GitHub issue before step 2, per the conventions. If it is labelled `in-progress`, show the latest claim (host, time) and stop unless the user says to take it over. Otherwise add `in-progress`, post the claim comment, re-read the comments with `gh issue view`, and release and stop if an earlier claim from another host wins. From here on, any stop without a PR means **Release** (end of this skill).
 - A key like `ABC-123`, or a Jira/Linear/Notion URL → use the matching MCP tool if connected; if not, say which connector is needed and ask the user to paste the content.

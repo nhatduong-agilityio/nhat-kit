@@ -381,6 +381,107 @@ mkdir -p "$psd/norepo"
 (cd "$psd/norepo" && "$ps" main >/dev/null 2>&1); got=$?
 row pr-size "not a repo is exit 1" 1 "$got" 0 "expected exit 1"
 
+# --- queue-status: stub gh on PATH returns canned JSON per subcommand ---
+qs="$root/plugins/devkit/scripts/queue-status.sh"
+mkdir -p "$psd/qsbin"
+cat >"$psd/qsbin/gh" <<'STUB'
+#!/bin/sh
+[ -z "${QS_FAIL:-}" ] || { echo "gh: boom" >&2; exit 1; }
+case "$1 $2" in
+  "pr list") f="$QS_PRS" ;;
+  "issue list") f="$QS_ISSUES" ;;
+  *) exit 1 ;;
+esac
+if [ -n "${QS_PRETTY:-}" ]; then python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin), indent=2))' <"$f"; else cat "$f"; fi
+STUB
+chmod +x "$psd/qsbin/gh"
+qs_ago() { python3 -c 'import sys,datetime as d; print((d.datetime.now(d.timezone.utc)-d.timedelta(minutes=int(sys.argv[1]))).strftime("%Y-%m-%dT%H:%M:%SZ"))' "$1"; } # qs_ago <minutes>
+qs_prs() { # qs_prs <open non-draft count> <draft count> [body of first PR]
+  python3 -c 'import sys,json
+n,dr=int(sys.argv[1]),int(sys.argv[2]); b=sys.argv[3] if len(sys.argv)>3 else ""
+print(json.dumps([{"number":100+i,"isDraft":i>=n,"body":(b if i==0 else ""),"headRefName":"b%d"%i} for i in range(n+dr)]))' "$@" >"$psd/prs.json"
+}
+qs_issue() { # qs_issue <claim minutes ago> [release minutes ago] [claim time override]: one issue #7
+  python3 -c 'import sys,json,datetime as d
+def t(m): return (d.datetime.now(d.timezone.utc)-d.timedelta(minutes=int(m))).strftime("%Y-%m-%dT%H:%M:%SZ")
+c=sys.argv[1]; r=sys.argv[2] if len(sys.argv)>2 else ""; o=sys.argv[3] if len(sys.argv)>3 else ""
+cm=[{"author":{"login":"u"},"body":"hello","createdAt":t(500)},
+    {"author":{"login":"u"},"body":"\U0001F512 devkit claim · host: box1 · task: T-1 · "+t(c),"createdAt":o or t(c)}]
+if r: cm.append({"author":{"login":"u"},"body":"\U0001F513 devkit release · host: box1 · reason: x · done so far: nothing","createdAt":t(r)})
+print(json.dumps([{"number":7,"title":"Fix the thing","comments":cm}]))' "$@" >"$psd/issues.json"
+}
+qs_multi() { # qs_multi <kind:host:minutes-ago>...: issue #7 with these claim (c) / release (r) comments
+  python3 -c 'import sys,json,datetime as d
+def t(m): return (d.datetime.now(d.timezone.utc)-d.timedelta(minutes=int(m))).strftime("%Y-%m-%dT%H:%M:%SZ")
+cm=[]
+for a in sys.argv[1:]:
+    k,h,m=a.split(":")
+    b=("\U0001F512 devkit claim · host: %s · task: T-1 · " if k=="c" else "\U0001F513 devkit release · host: %s · reason: x · done so far: nothing") % h
+    cm.append({"body":b,"createdAt":t(m)})
+print(json.dumps([{"number":7,"title":"Fix the thing","comments":cm}]))' "$@" >"$psd/issues.json"
+}
+qsck() { # qsck <name> <dir> <exp exit> <expected output substring> [unexpected substring]
+  local got
+  (cd "$2" && PATH="$psd/qsbin:$PATH" QS_PRS="$psd/prs.json" QS_ISSUES="$psd/issues.json" "$qs" >"$out" 2>/dev/null); got=$?
+  row queue-status "$1" "$3" "$got" 0 "exit code differs"
+  if [ -n "$4" ]; then grep -qF -- "$4" "$out"; row queue-status "$1: output" 0 $? 0 "missing: $4"; fi
+  if [ -n "${5:-}" ]; then ! grep -qF -- "$5" "$out"; row queue-status "$1: absent" 0 $? 0 "unexpected: $5"; fi
+}
+echo '[]' >"$psd/issues.json"
+mkrepo qsa; qs_prs 1 1
+qsck "2 PRs (1 draft), limit 5 is ok" "$r" 0 "open_prs=1 max_open_prs=5 pressure=ok ttl_minutes=120 stale=0"
+qs_prs 5 0
+qsck "5 non-draft PRs is over" "$r" 0 "open_prs=5 max_open_prs=5 pressure=over"
+mkrepo qsoff "- max_open_prs: 0"; qs_prs 9 0
+qsck "max_open_prs 0 turns it off" "$r" 0 "pressure=off"
+mkrepo qsb; qs_prs 0 0; qs_issue 180
+qsck "3-hour claim without release or PR is stale" "$r" 0 "stale=1"
+grep -qE $'^#7\tbox1\t(18[0-9]|19[0-9])\tFix the thing$' "$out"; row queue-status "stale row has host, age, title" 0 $? 0 "row format"
+qs_issue 180 60
+qsck "later release means not stale" "$r" 0 "stale=0"
+qs_prs 1 0 "Closes #7"; qs_issue 180
+qsck "open PR with Closes #N means not stale" "$r" 0 "stale=0"
+qs_prs 0 0; qs_issue 10
+qsck "10-minute claim is not stale" "$r" 0 "stale=0"
+mkrepo qsttl "- claim_ttl_minutes: 30"; qs_issue 45
+qsck "ttl 30 with a 45-minute claim is stale" "$r" 0 "ttl_minutes=30 stale=1"
+mkrepo qsc; qs_issue 180 "" "not-a-time"
+qsck "malformed comment time is skipped" "$r" 0 "stale=0"
+qs_prs 0 0; qs_multi c:A:300 c:B:200 r:B:190
+qsck "released second host: stale on the winner A" "$r" 0 "stale=1"
+grep -qE $'^#7\tA\t' "$out"; row queue-status "winner host is reported" 0 $? 0 "host A expected"
+qs_multi c:A:400 c:B:300
+qsck "takeover without release: stale on the latest claim" "$r" 0 "stale=1"
+grep -qE $'^#7\tB\t30[0-9]\t' "$out"; row queue-status "takeover row names the latest claimer B" 0 $? 0 "host B expected"
+qs_multi c:A:300 c:B:10
+qsck "old claim plus recent active claim is not stale" "$r" 0 "stale=0"
+qs_multi c:A:300 r:A:200
+qsck "all released but labelled is stale" "$r" 0 "stale=1"
+grep -qE $'^#7\t-\t(19[0-9]|200)\t' "$out"; row queue-status "all-released row has host - and age since release" 0 $? 0 "row format"
+qs_multi c:A:200 r:A:200
+qsck "release in the same second as a claim counts as after it" "$r" 0 "stale=1"
+qs_prs 0 0; qs_issue 180
+(cd "$r" && PATH="$psd/qsbin:$PATH" QS_PRETTY=1 CLICOLOR_FORCE=1 GH_FORCE_TTY=1 QS_PRS="$psd/prs.json" QS_ISSUES="$psd/issues.json" "$qs" >"$out" 2>/dev/null); got=$?
+row queue-status "pretty-printed multi-line gh JSON works" 0 "$got" 0 "exit code differs"
+grep -qF "stale=1" "$out"; row queue-status "pretty-printed output parsed" 0 $? 0 "stale=1 missing"
+qs_prs 5 2
+qsck "review lists the 3 oldest non-draft PRs" "$r" 0 " review=#100,#101,#102"
+qs_prs 0 2
+qsck "no non-draft PR gives review=-" "$r" 0 " review=-"
+qs_prs 1 0 "fix #7"; qs_issue 180
+qsck "fix #N counts as a reference" "$r" 0 "stale=0"
+qs_prs 1 0 "Closes: #7"
+qsck "Closes: #N counts as a reference" "$r" 0 "stale=0"
+qs_prs 1 0 "see owner/repo#7"
+qsck "owner/repo#N is not a reference" "$r" 0 "stale=1"
+qs_prs 0 0; python3 -c 'import json,datetime as d
+t=(d.datetime.now(d.timezone.utc)-d.timedelta(minutes=180)).strftime("%Y-%m-%dT%H:%M:%SZ")
+print(json.dumps([{"number":7,"title":"T","comments":[{"body":"\U0001F512 devkit claim · host: bo\x1bx · task: T-1","createdAt":t}]}]))' >"$psd/issues.json"
+qsck "control chars are stripped from the host" "$r" 0 "stale=1"
+! grep -q $'\x1b' "$out"; row queue-status "no escape char in output" 0 $? 0 "escape leaked"
+(cd "$r" && PATH="$psd/qsbin:$PATH" QS_FAIL=1 QS_PRS="$psd/prs.json" QS_ISSUES="$psd/issues.json" "$qs" >/dev/null 2>&1); got=$?
+row queue-status "failing gh is exit 1" 1 "$got" 0 "expected exit 1"
+
 expect "$notify" 0 "always exits 0" '{"message":"test"}'
 
 echo "$cases cases, $nfail failed, total $total ms"
