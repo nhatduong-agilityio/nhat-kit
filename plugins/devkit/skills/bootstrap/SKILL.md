@@ -44,7 +44,7 @@ Use `AskUserQuestion` (at most 4 questions, each with a recommended option) only
 - Which MCP integrations to connect (issue tracker, Figma, DB, Sentry, browser).
 - Whether to set up PR review in CI.
 
-Then present the **BOOTSTRAP PLAN**: a table of every file to create or modify, per layer, plus the commands to run. **Stop and wait for the user's approval** before writing any file.
+Then present the **BOOTSTRAP PLAN**: a table of every file to create or modify, per layer, plus the commands to run. Include a "Protected branches" row (default: the remote's default branch, or `main`; names or globs); the user's approval of the plan confirms it. **Stop and wait for the user's approval** before writing any file.
 
 ## Step 3 — Scaffold (GREENFIELD only)
 
@@ -56,13 +56,14 @@ Then present the **BOOTSTRAP PLAN**: a table of every file to create or modify, 
 
 - `.claude/settings.json` from `templates/settings.json`: `allow` exactly the commands that ran successfully; `ask` for `git push`; `deny` reading `.env*` and editing generated-code folders (if any).
 - Copy `templates/hooks/*.sh` to `.claude/hooks/` and `chmod +x` them. Keep the format hook only if the project has a formatter. Replace `check-before-commit.sh`'s `{{QUICK_CHECK_CMD}}` line with the verified Quick check from `CLAUDE.md`, verbatim on that one line: typecheck and lint joined with `&&`, or just the one that exists; no `#` comment and no line break. If the project has neither, delete the hook and its `PreToolUse` entry in `settings.json`.
+- Replace `block-protected-push.sh`'s `{{PROTECTED_BRANCHES}}` line with the "Protected branches" row of the plan: one line, names separated by spaces. With none, delete the hook and its `PreToolUse` entry in `settings.json`.
 - Append the lines from `templates/gitignore-additions.txt` to `.gitignore` (skip lines already present).
 - Do not set `defaultMode` in the project file — Claude Code ignores `auto`/`bypassPermissions` there; the user sets it in `~/.claude/settings.json`.
 
 ## Step 5 — Layer 2: Memory & context
 
 - `CLAUDE.md` from `templates/CLAUDE.md`, filled from the brief and the verified commands. Point to `docs/PROJECT_BRIEF.md` with a plain path, not an `@import` (imports load into every session), unless the brief is under 60 lines.
-- Fill "Remotes & never-push rules" from `git remote -v` and the branch protection the user confirms (which branch(es) are push-protected); restate that `block-force-push` already blocks every force-push. Leave "Removed / reversed" as the template's placeholder line until a decision is actually reversed — never invent an entry.
+- Fill "Remotes & never-push rules" from `git remote -v` and the "Protected branches" row of the approved plan; restate that `block-force-push` already blocks every force-push. Leave "Removed / reversed" as the template's placeholder line until a decision is actually reversed — never invent an entry.
 - `.claude/rules/<domain>.md` for each module with its own conventions, each with `paths:` matching that module's folder. Start from `templates/rules/`; delete rules that merely restate language defaults.
 - `docs/architecture.md`: GREENFIELD records architecture decisions and why; EXISTING records a short module map.
 - An empty `CLAUDE.local.md` with a one-line explanation (already gitignored).
@@ -84,7 +85,7 @@ Then present the **BOOTSTRAP PLAN**: a table of every file to create or modify, 
 ## Step 8 — Verify and hand off
 
 1. Run lint, typecheck, and tests; all must pass (or note clearly which failures pre-date the bootstrap).
-2. Test each hook script with sample JSON, e.g. `echo '{"tool_input":{"file_path":"src/x.ts"}}' | .claude/hooks/format-on-edit.sh; echo $?`, and `echo '{"tool_input":{"command":"git status"}}' | .claude/hooks/check-before-commit.sh; echo $?` (expect 0).
+2. Test each hook script with sample JSON, e.g. `echo '{"tool_input":{"file_path":"src/x.ts"}}' | .claude/hooks/format-on-edit.sh; echo $?`, and `echo '{"tool_input":{"command":"git status"}}' | .claude/hooks/check-before-commit.sh; echo $?` (expect 0), and `echo '{"tool_input":{"command":"git push origin <protected>"}}' | .claude/hooks/block-protected-push.sh; echo $?` (expect 2).
 3. If `.claude/agents/` exists: run `claude plugin validate .claude/agents`.
 4. `wc -l CLAUDE.md` must be under 120.
 5. Ask before committing; message: `chore: bootstrap claude code setup`.

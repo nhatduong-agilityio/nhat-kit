@@ -38,7 +38,7 @@
 
 # Remotes & never-push rules
 - Remote: `{{REMOTE_NAME}}` → `{{REMOTE_URL}}`; protected branches: `{{PROTECTED_BRANCHES}}`
-- Force-push is blocked on every branch by the `block-force-push` hook; normal pushes still need the user's approval
+- Pushes to the protected branches are blocked by the `block-protected-push` hook (the user can run `! git push` themselves); force-push is blocked on every branch by `block-force-push`; other pushes still need the user's approval
 - {{OTHER_PUSH_RULE}}
 <!-- TEMPLATE: delete {{OTHER_PUSH_RULE}} if there is none -->
 
