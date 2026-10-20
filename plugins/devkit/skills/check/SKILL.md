@@ -2,12 +2,12 @@
 name: check
 description: Health-check the current project's 4 Claude Code layers and point out what is missing or outdated. Read-only.
 disable-model-invocation: true
-allowed-tools: Bash(ls *) Bash(wc *) Bash(git log *) Bash(git status *)
+allowed-tools: Bash(ls *) Bash(wc *) Bash(git log *) Bash(git status *) Bash(bash */branch-protection.sh *)
 ---
 
 # 4-layer health check
 
-Read only; change nothing. Return one table: Layer · Item · Status (OK / Missing / Needs fix) · Notes.
+Read only; change nothing. Return one table: Layer · Item · Status (OK / Missing / Needs fix / Unknown / Not checked) · Notes.
 
 **Layer 1 — Config & permissions**
 - `.claude/settings.json` exists and is valid JSON; commands in `allow` still exist in the project's scripts.
@@ -30,5 +30,6 @@ Read only; change nothing. Return one table: Layer · Item · Status (OK / Missi
 **Layer 4 — Workflow**
 - `docs/tasks/_TEMPLATE/SPEC.md`, `docs/BACKLOG.md`, `.github/pull_request_template.md` and `.github/ISSUE_TEMPLATE/` (if using GitHub); flag any leftover `{{` placeholder.
 - Work in progress: the contents of `.claude/current-task`.
+- Default branch protection: run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/branch-protection.sh`. OK when `pr_required` and `force_push_blocked` are both true. Needs fix when either is false: enable it in GitHub settings (e.g. add a `pull_request` rule to the ruleset); there is no `--fix` yet. Unknown, noting "needs admin or API error", when either is unknown and neither is false (false wins: Needs fix). "Not checked" with the reason when the script exits 1.
 
 After the table: at most 5 recommended actions, ordered by impact. Suggest `/devkit:bootstrap` to fill gaps, `/devkit:review` to review `CLAUDE.md` for conflicting instructions, `/doctor` (Claude Code built-in) for a full installation health-check, `/doctor prompt-audit` (v2.1.283+) to audit `CLAUDE.md` instructions for internal conflicts and redundancies, and `/devkit:security-scan` for a whole-project scan of secrets, dependencies, and sensitive files.
