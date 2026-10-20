@@ -61,7 +61,7 @@ Something broke: /devkit:fix  (hard ones: /devkit:debug first)
 Periodically:    /devkit:retro, /devkit:check
 ```
 
-Plans live in `plans/<date>-<slug>/` (plan.md, research/, report.md); task specs in `docs/tasks/<ID>-<slug>/SPEC.md`. Plans, pushes, and PRs always wait for your approval. Shared conventions: `plugins/devkit/references/conventions.md`.
+Plans live in `plans/<date>-<slug>/` (plan.md, research/, report.md); task specs in `docs/tasks/<ID>-<slug>/SPEC.md`. Plans, pushes, and PRs always wait for your approval, and only an explicit yes counts; an approved plan records `Approved: YYYY-MM-DD by <name>`. Shared conventions: `plugins/devkit/references/conventions.md`.
 
 ## Getting started
 
@@ -189,7 +189,7 @@ Rule: never obtain or copy ClaudeKit skill content or code (it's a paid product 
 
 ## Evals
 
-`plugins/devkit/evals/` holds behavior cases run with `claude plugin eval`. They cover review delegation, cook and plan-sync refusing a draft plan, the ship size gate, and the cook retry tier. The commands and costs are in `plugins/devkit/evals/README.md`. `/release` runs the core cases.
+`plugins/devkit/evals/` holds behavior cases run with `claude plugin eval`. They cover review delegation, cook and plan-sync refusing a draft plan, cook asking again when a plan has no `Approved:` line, the ship size gate, and the cook retry tier. The commands and costs are in `plugins/devkit/evals/README.md`. `/release` runs the core cases.
 
 ## Roadmap
 

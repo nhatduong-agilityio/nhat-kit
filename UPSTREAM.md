@@ -129,14 +129,14 @@ A teammate's squad-orchestration plugin, used as an idea source ([repo](https://
 
 | Practice | devkit | Status | Notes |
 | --- | --- | --- | --- |
-| Plugin behavior evals (cases, fixtures, rubric + tool-call graders) | `plugins/devkit/evals/` | ✅ | P-26 (shared); 3 core cases pass, 2 `needs-bash` cases blocked by this machine's Bash sandbox |
+| Plugin behavior evals (cases, fixtures, rubric + tool-call graders) | `plugins/devkit/evals/` | ✅ | P-26 (shared); 4 core cases pass, 2 `needs-bash` cases blocked by this machine's Bash sandbox |
 | PR size limit per task size | `scripts/pr-size.sh` in `ship`/`task`/`review` | ✅ | P-27 (shared); one limit, no per-task tiers; settings in `docs/devkit.md` |
 | Requirements ingestion to traceable markdown sources | `bootstrap` / `requirements-analyst` | ⏳ | P-28 (shared) |
 | Retry one model tier up after a send-back | `cook`, `task` | ✅ | P-29 (shared); escalation not yet proven by a run; the eval case `cook-retries-tier-up` exists but needs a Bash-capable sandbox |
 | Claim TTL and released-claim marking | `/devkit:task next` + `scripts/queue-status.sh` | ✅ | P-30 (stage 1); stale claims are offered, never taken over automatically; release comments kept instead of editing the claim |
 | Post-deploy log error scan → bugs | `/devkit:deploy` | ⏳ | P-31 (stage 1) |
 | Doctor: check, then fix after confirmation (+ team checks) | `/devkit:check` | ⏳ | P-32 (stage 1) |
-| Explicit-yes gates with who/when recorded | `/devkit:plan` approval | ⏳ | P-33 (shared) |
+| Explicit-yes gates with who/when recorded | conventions "Approval"; `plan`, `cook`, `ship`, `deploy`, `task` | ✅ | P-33 (shared); plans carry `Approved: YYYY-MM-DD by <name>`; recorded in the plan file, not on the issue; eval `cook-asks-unrecorded-approval` |
 | Stakeholder answers verbatim + English translation | `grill` / `task` / `requirements-analyst` | ⏳ | P-34 (shared) |
 | Block `gh pr merge --admin` and self-approval | `block-force-push` hook | ✅ | P-35 (shared) |
 | Open-PR back-pressure | `/devkit:task next` + `scripts/queue-status.sh` | ✅ | P-36 (stage 1); counts all open non-draft PRs |

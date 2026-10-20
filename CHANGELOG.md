@@ -4,6 +4,10 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ## [Unreleased]
 
+### Changed
+
+- Approvals record who and when, and only an explicit yes counts (P-33). Conventions gain an "Approval" section and an `Approved: YYYY-MM-DD by <name>` line in the plan format (name from `gh api user`, then `git config user.name`, then `unknown`). `/devkit:plan` writes the line on approval. `/devkit:cook` uses a plan only when it has the line, so plans approved or in progress before this change are asked about once more; `--auto` writes it with ` (--auto)`; an existing line is never replaced, and a `done` plan is not re-run. `/devkit:ship` and `/devkit:task` (size go-ahead, push) and `/devkit:deploy` (Gates 1, 3, 5) treat silence, a hedge, or a question as not approved; ship and task note who approved an oversized change, and deploy reports who confirmed each environment. New core eval `cook-asks-unrecorded-approval`; the `cook-retries-tier-up` fixture gains an `Approved:` line.
+
 ## [2.5.0] - 2026-10-19
 
 ### Added

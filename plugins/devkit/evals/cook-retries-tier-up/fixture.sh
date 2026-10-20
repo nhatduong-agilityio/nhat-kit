@@ -16,6 +16,7 @@ mkdir -p plans/fx
 cat > plans/fx/plan.md <<'MD'
 # Greeting file
 Status: approved · Source: eval fixture
+Approved: 2026-10-19 by eval
 
 ## Goal
 The repo has a greeting file that the product team's acceptance check accepts.
