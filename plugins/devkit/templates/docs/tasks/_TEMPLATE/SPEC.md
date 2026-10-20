@@ -19,7 +19,7 @@ As a {{role}}, I want to {{action}} so that {{value}}.
 - `{{path}}` — {{reason}}
 
 ## Open questions
-| Question | Blocking? | Proposed answer / assumption in use | BA's answer |
+| Question | Blocking? | Proposed answer / assumption in use | BA's answer (verbatim + EN) |
 | --- | --- | --- | --- |
 
 ## Plan

@@ -6,6 +6,8 @@ Every devkit skill and agent follows this file. When a skill says "per the conve
 
 All artifacts are written in English: code, comments, commit messages, plans, specs, reports, PR descriptions, and docs. Chat replies to the user follow the user's preference (see their `CLAUDE.md`).
 
+Exception: a stakeholder's own words (free-text answers, BA replies, quoted meeting notes) stay verbatim in the original language, followed by an English translation: `"<original>" (EN: <translation>)`. Use this shape in tables and lists alike; in a table cell, write `|` as `\|` and line breaks as `<br>` (this is not an edit). Quote an English answer once, with no translation; translate when any part is not English. Never paraphrase, shorten, or fix typos inside the quote; clarify in the translation or a separate note. An option Claude wrote and the user picked is not their words: record its text unquoted, followed by any notes they typed in the quoted shape. Replace contact details (private people's names, phone numbers, emails) with `[redacted]` in both the quote and its translation. Escaping and `[redacted]` are the only changes allowed inside a quote.
+
 ## Directories
 
 | Path | Contains | Written by |
