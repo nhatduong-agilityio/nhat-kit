@@ -147,7 +147,7 @@ A teammate's squad-orchestration plugin, used as an idea source ([repo](https://
 | Dependency waves | `/devkit:plan` | ⏳ | P-41 (stage 2) |
 | Orchestrated run | — | ⏳ | P-42 (stage 2) |
 | Agents stay in their lane | plugin hook | ⏳ | P-43 (stage 2) |
-| Protected branches: GitHub protection + local template hook | `/devkit:check`, template hook | ⏳ | P-44 (stage 1) |
+| Protected branches: GitHub protection + local template hook | `/devkit:check`, template hook | ✅ | P-44 (shared); `scripts/branch-protection.sh` feeds a `/devkit:check` Layer 4 row; template hook `block-protected-push.sh` blocks pushes to the `CLAUDE.md` protected branches, filled by `/devkit:bootstrap`; tested in `scripts/test-hooks.sh`, no eval |
 | Platform CLI only through a read/write wrapper; user types secrets | `/devkit:deploy` | ⏳ | P-45 (stage 1, all platforms) |
 | Task state: native sub-issues/dependencies vs Projects board | — | ⏳ | P-46 (research before stage 2) |
 | Per-run dollar cap, large mechanical changes | `--max-budget-usd`, `/batch` | ⊘ | |

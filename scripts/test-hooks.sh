@@ -582,6 +582,90 @@ qsck "control chars are stripped from the host" "$r" 0 "stale=1"
 (cd "$r" && PATH="$psd/qsbin:$PATH" QS_FAIL=1 QS_PRS="$psd/prs.json" QS_ISSUES="$psd/issues.json" "$qs" >/dev/null 2>&1); got=$?
 row queue-status "failing gh is exit 1" 1 "$got" 0 "expected exit 1"
 
+# --- branch-protection: stub gh on PATH, scenario chosen by BP_CASE ---
+# Stub contract (the script under test must match it):
+#   gh repo view --json defaultBranchRef [--jq .defaultBranchRef.name]  -> with --jq prints "main"; else {"defaultBranchRef":{"name":"main"}}
+#   gh api repos/<o>/<r>/branches/<b>             -> JSON with protected, protection.enabled
+#   gh api repos/<o>/<r>/rules/branches/<b>       -> JSON array of {"type": ...}
+#   gh api repos/<o>/<r>/branches/<b>/protection  -> classic JSON, or stderr "gh: HTTP 403/404" + exit 1 (BP_CASE ending in 403)
+# `gh api` calls must NOT pass --jq/-q: the stub exits 64 on it. The script parses raw JSON itself (python3 -I).
+# The rules call carries "?per_page=100" (still matched by */rules/branches/*). The script rejects names that
+# fail `git check-ref-format --branch`. BP_CASE=apifail makes branches/<b> fail (exit 1); rulesfail makes the rules call fail.
+bp="$root/plugins/devkit/scripts/branch-protection.sh"
+mkdir -p "$psd/bpbin"
+cat >"$psd/bpbin/gh" <<'STUB'
+#!/bin/sh
+case "$1 $2" in
+  "repo view")
+    [ "${BP_CASE:-}" = viewfail ] && { echo "gh: not a repo" >&2; exit 1; }
+    for a in "$@"; do
+      if [ "$a" = "--jq" ] || [ "$a" = "-q" ]; then echo main; exit 0; fi
+    done
+    echo '{"defaultBranchRef":{"name":"main"}}'; exit 0 ;;
+  "api "*) ;;
+  *) exit 1 ;;
+esac
+for a in "$@"; do case "$a" in --jq|-q) echo "stub: gh api must not use --jq" >&2; exit 64 ;; esac; done
+c="${BP_CASE:-}"
+case "$2" in
+  */branches/*/protection)
+    case "$c" in
+      classic_on) echo '{"required_pull_request_reviews":{"required_approving_review_count":1},"allow_force_pushes":{"enabled":false}}' ;;
+      classic_open) echo '{"allow_force_pushes":{"enabled":true}}' ;;
+      both) echo '{"required_pull_request_reviews":{"required_approving_review_count":1},"allow_force_pushes":{"enabled":true}}' ;;
+      *403) echo "gh: HTTP 403: Upgrade to GitHub Pro or make this repository public (repos/o/r/branches/main/protection)" >&2; exit 1 ;;
+      *) echo "gh: Not Found (HTTP 404)" >&2; exit 1 ;;
+    esac ;;
+  */rules/branches/*)
+    case "$c" in
+      ruleset) echo '[{"type":"pull_request"},{"type":"non_fast_forward"}]' ;;
+      thisrepo) echo '[{"type":"deletion"},{"type":"non_fast_forward"}]' ;;
+      both) echo '[{"type":"non_fast_forward"}]' ;;
+      classic403_rules) echo '[{"type":"non_fast_forward"}]' ;;
+      rulesfail) echo "gh: HTTP 500" >&2; exit 1 ;;
+      *) echo '[]' ;;
+    esac ;;
+  */branches/*)
+    case "$c" in
+      apifail) echo "gh: HTTP 500" >&2; exit 1 ;;
+      ruleset|thisrepo|rulesfail) echo '{"protected":true,"protection":{"enabled":false}}' ;;
+      classic_on|classic_open|both|classic403|classic404|classic403_rules) echo '{"protected":true,"protection":{"enabled":true}}' ;;
+      nonadmin) echo '{"protected":true}' ;;
+      *) echo '{"protected":false,"protection":{"enabled":false}}' ;;
+    esac ;;
+  *) exit 1 ;;
+esac
+STUB
+chmod +x "$psd/bpbin/gh"
+bpck() { # bpck <name> <BP_CASE> <exp exit> <expected substring>... (script args via BP_ARGS)
+  local name="$1" cs="$2" ex="$3" got; shift 3
+  (cd "$root" && PATH="$psd/bpbin:$PATH" BP_CASE="$cs" "$bp" ${BP_ARGS:-} >"$out" 2>/dev/null); got=$?
+  row branch-protection "$name" "$ex" "$got" 0 "exit code differs"
+  local s; for s in "$@"; do grep -qF -- "$s" "$out"; row branch-protection "$name: $s" 0 $? 0 "missing: $s"; done
+}
+bpck "ruleset with PR and non_fast_forward" ruleset 0 "branch=main" "protected=true" "pr_required=true" "force_push_blocked=true" "source=rules"
+bpck "this repo shape: deletion + non_fast_forward" thisrepo 0 "branch=main protected=true pr_required=false force_push_blocked=true" "source=rules"
+bpck "classic on and readable, strict values" classic_on 0 "pr_required=true force_push_blocked=true" "source=classic"
+bpck "classic on, no reviews, force push allowed" classic_open 0 "pr_required=false force_push_blocked=false" "source=classic"
+bpck "classic on and 403 with no rules" classic403 0 "protected=true pr_required=unknown force_push_blocked=unknown"
+bpck "classic on and 404 with no rules" classic404 0 "pr_required=unknown force_push_blocked=unknown"
+bpck "classic 403 keeps what rules prove" classic403_rules 0 "force_push_blocked=true"
+bpck "non-admin JSON without protection key" nonadmin 0 "protected=true" "pr_required=unknown" "force_push_blocked=unknown"
+bpck "classic and rules both" both 0 "pr_required=true force_push_blocked=true" "source=both"
+bpck "unprotected branch" unprotected 0 "protected=false pr_required=false force_push_blocked=false source=none"
+BP_ARGS=develop bpck "explicit branch argument is used" ruleset 0 "branch=develop"
+BP_ARGS=develop bpck "explicit branch is not the default" ruleset 0 "source=rules"
+grep -qF "branch=develop" "$out" && ! grep -qF "branch=main" "$out"; row branch-protection "explicit branch: default not reported" 0 $? 0 "branch=main leaked"
+bpck "api failure on branches/<b> is exit 1" apifail 1
+bpck "rules call fails: unknown, not false" rulesfail 0 "protected=true pr_required=unknown force_push_blocked=unknown"
+BP_ARGS='main?x=1' bpck "invalid branch name is exit 1" ruleset 1
+bpck "gh repo view failure is exit 1" viewfail 1
+bpck "output is a single line" ruleset 0
+[ "$(wc -l <"$out" | tr -d ' ')" = 1 ]; row branch-protection "summary is exactly one line" 0 $? 0 "expected 1 line"
+mkdir -p "$psd/bpnogh"; ln -sf "$(command -v python3)" "$psd/bpnogh/python3"
+(cd "$root" && PATH="$psd/bpnogh" /bin/bash "$bp" >/dev/null 2>&1); got=$?
+row branch-protection "gh missing from PATH is exit 1" 1 "$got" 0 "expected exit 1"
+
 expect "$notify" 0 "always exits 0" '{"message":"test"}'
 
 echo "$cases cases, $nfail failed, total $total ms"
