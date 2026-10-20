@@ -31,4 +31,6 @@ Do not write or edit code in this skill. Conventions: `${CLAUDE_PLUGIN_ROOT}/ref
    ## Out of scope
    ```
 
+   When the user typed an answer ("Other" or notes), the Answer cell holds it as `"<original>" (EN: <translation>)` per the conventions' "Language" section; a picked option is recorded as is, followed by any notes the user typed in that shape (e.g. `<option text>; "<notes>" (EN: …)`).
+
 7. Summarize the key decisions in 3–5 bullets and suggest `/devkit:plan plans/<...>/decisions.md`.

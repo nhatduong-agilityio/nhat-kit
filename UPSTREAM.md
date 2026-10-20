@@ -137,7 +137,7 @@ A teammate's squad-orchestration plugin, used as an idea source ([repo](https://
 | Post-deploy log error scan → bugs | `/devkit:deploy` | ⏳ | P-31 (stage 1) |
 | Doctor: check, then fix after confirmation (+ team checks) | `/devkit:check` | ⏳ | P-32 (stage 1) |
 | Explicit-yes gates with who/when recorded | conventions "Approval"; `plan`, `cook`, `ship`, `deploy`, `task` | ✅ | P-33 (shared); plans carry `Approved: YYYY-MM-DD by <name>`; recorded in the plan file, not on the issue; eval `cook-asks-unrecorded-approval` |
-| Stakeholder answers verbatim + English translation | `grill` / `task` / `requirements-analyst` | ⏳ | P-34 (shared) |
+| Stakeholder answers verbatim + English translation | `grill` / `task` / `requirements-analyst` | ✅ | P-34 (shared); conventions "Language" verbatim rule, applied in `grill` step 6, `task` step 3, `requirements-analyst`, and the SPEC template column `BA's answer (verbatim + EN)`; contact details become `[redacted]`; no eval (needs a second user turn) |
 | Block `gh pr merge --admin` and self-approval | `block-force-push` hook | ✅ | P-35 (shared) |
 | Open-PR back-pressure | `/devkit:task next` + `scripts/queue-status.sh` | ✅ | P-36 (stage 1); counts all open non-draft PRs |
 | Team metrics from GitHub data only | — | ⏳ | P-37 (stage 1) |

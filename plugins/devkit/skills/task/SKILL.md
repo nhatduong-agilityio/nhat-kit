@@ -33,8 +33,8 @@ Write the spec path to `.claude/current-task` (one line) so the hook can restore
 
 Have the `devkit:requirements-analyst` subagent check the SPEC against `docs/PROJECT_BRIEF.md`, `CLAUDE.md`, and the current code: ambiguous ACs, conflicts with existing behavior, missing edge cases (empty, network failure, permissions, i18n, accessibility, mobile).
 
-- **Blocking** questions (can't be done correctly without an answer) → stop, draft a ready-to-send message to the BA (bullets, each with a proposed answer), save it under "Open questions" in the SPEC, and wait for the user. If the user won't continue in this session, **Release** the issue.
-- **Non-blocking** questions → record the chosen assumption in the SPEC and continue.
+- **Blocking** questions (can't be done correctly without an answer) → stop, draft a ready-to-send message to the BA (bullets, each with a proposed answer), save it under "Open questions" in the SPEC, and wait for the user. If the user won't continue in this session, **Release** the issue. When the BA's reply comes back, record it in the SPEC's "BA's answer" column (whatever the header says) as `"<original>" (EN: <translation>)` per the conventions' "Language" section, then update the affected ACs in English.
+- **Non-blocking** questions → record the chosen assumption in the SPEC and continue. If the BA answers one later, record the reply the same way.
 
 ## 4. Plan
 
