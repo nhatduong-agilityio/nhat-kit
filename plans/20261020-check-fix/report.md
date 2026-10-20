@@ -24,3 +24,25 @@ Plan: `plans/20261020-check-fix/plan.md` · Delivered as 3 stacked PRs (A, B, C)
 
 ### Out-of-scope issues found
 - None.
+
+## PR B — Phases 3–4 (branch `feat/check-fix-worktrees`, stacked on PR A)
+
+### Files changed
+- New: `plugins/devkit/scripts/worktree-status.sh` (75)
+- Modified: `plugins/devkit/scripts/team-fix.sh` (`prune`, `remove-worktree <path> <ignored count>`), `plugins/devkit/skills/check/SKILL.md` ("Leftover worktrees" row), `plugins/devkit/skills/check-fix/SKILL.md` (prune in the safe question, one yes per merged worktree), `scripts/test-hooks.sh` (+99), `CHANGELOG.md`, `UPSTREAM.md`
+
+### Evidence
+- `scripts/test-hooks.sh` → "549 cases, 0 failed. All hooks passed." (76 new rows; 473 before)
+- `bash plugins/devkit/scripts/worktree-status.sh` (live, read-only) → `worktrees=0 prunable=0 merged=0 kept=0 gh=ok`; outside a repo → exit 1
+- `git --version` → 2.49.0; the removal rows prove `git worktree remove -- <path>` is accepted
+- `claude plugin validate plugins/devkit --strict && claude plugin validate .` → both pass
+- `bash pr-size.sh feat/check-fix-team-status` → `lines=237 files=7 … status=ok`
+- prune/remove-worktree ran only against temp repos
+- TDD: 51 rows written first, failing on the missing script
+
+### Review findings
+- Code-reviewer round 1: **C1** (data loss) `status.showUntrackedFiles=no` hid an untracked file and removal deleted it (reproduced) → clean check forces `-c status.showUntrackedFiles=all --untracked-files=all --ignore-submodules=none`; W1 skip-worktree/assume-unchanged edits → kept; W2 outside a repo → exit 1; W3 prune question lists prunable paths + unmounted-drive warning; W4 `remove-worktree` re-checks the ignored count; W5 prune independent of gh and label gating; W6 exact `reason=current`; O1 `ENVIRON` in awk; O5 `LC_ALL=C`; O6 header; O8 "no other session uses it". Retry 1 on opus.
+- Round 2: W-a an ignored nested git repo would be deleted with its history → worktree `kept`; O-b count argument 1–6 digits, no arithmetic wrap; O-c header. Retry 2 on opus.
+- Ship review: **C1** a nested repo below an ignored dir (`build/sub`, listing collapses to `build/`) and **C2** a name git quotes (`né/`) were missed and removal deleted their history → detected via a second, non-`--directory` listing (git stops at nested repos and lists each as `<dir>/`; stops at the first hit; a failed listing keeps the row) and `core.quotePath=false`; 6 new test rows, all failing on the old script. Retry 3 on opus.
+- Ship gate-6 re-review (0 Critical/Warning): S1 the nested-repo listing now pipes to `grep -zqm1` (was a bash read loop, ~1.5 s per 200k-file tree); fail-closed via `PIPESTATUS` (git must exit 0 and grep 1 for `nest=0`) — probed with a failing `git ls-files` → `kept`.
+- Remaining (accepted): O-a only the ignored *count* is re-checked (new files inside an already-listed ignored directory are not detected); O-d `prune` acts on whatever is prunable at run time (metadata only, locked entries respected); one gh call per eligible worktree on each status run.
