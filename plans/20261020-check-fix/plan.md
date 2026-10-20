@@ -208,9 +208,9 @@ Rejected:
   - `bash plugins/devkit/scripts/pr-size.sh main` reports `status=ok`.
 
 ### Phase 3 — `worktree-status.sh`, `prune`, `remove-worktree` (PR B)
-- [ ] Write the read script described in Approach. It uses `-z` porcelain parsing, realpath comparison, the merged-PR `headRefOid` match, the clean check, the ignored listing, and `prune_preview`. File: `plugins/devkit/scripts/worktree-status.sh` (chmod +x).
-- [ ] Implement `prune` and `remove-worktree <path>` with the refusals described in Approach. The removal is exactly `git worktree remove -- "$path"`, never `--force`. File: `plugins/devkit/scripts/team-fix.sh`.
-- [ ] Tests use temp repos from `mkrepo` and a stub `gh` for `pr list`, chosen by `WT_CASE`. Cases:
+- [x] Write the read script described in Approach. It uses `-z` porcelain parsing, realpath comparison, the merged-PR `headRefOid` match, the clean check, the ignored listing, and `prune_preview`. File: `plugins/devkit/scripts/worktree-status.sh` (chmod +x).
+- [x] Implement `prune` and `remove-worktree <path>` with the refusals described in Approach. The removal is exactly `git worktree remove -- "$path"`, never `--force`. File: `plugins/devkit/scripts/team-fix.sh`.
+- [x] Tests use temp repos from `mkrepo` and a stub `gh` for `pr list`, chosen by `WT_CASE`. Cases:
   - No extra worktrees → `worktrees=0`.
   - Worktree directory deleted → `prunable`, plus a `prune_preview` row.
   - Merged PR whose `headRefOid` equals the tip, clean tree → `merged`. Also under `.claude/worktrees/`, and with the repo under a symlinked temp dir (realpath).
@@ -234,9 +234,9 @@ Rejected:
   - Assumption check: `git worktree remove -- <path>` is accepted by the local git. The removal test passing proves it, so record the git version.
 
 ### Phase 4 — Worktree row and `check-fix` additions (PR B)
-- [ ] Add `Bash(bash */worktree-status.sh *)` and the "Leftover worktrees" row. File: `plugins/devkit/skills/check/SKILL.md`.
-- [ ] Add these to the skill: the same `allow` entry; prune with `prune_preview` in the safe-fix question; one question per `merged` worktree, naming its path, its branch, and its ignored entries. File: `plugins/devkit/skills/check-fix/SKILL.md`.
-- [ ] Add a line to the P-32 entry: worktrees. File: `CHANGELOG.md`.
+- [x] Add `Bash(bash */worktree-status.sh *)` and the "Leftover worktrees" row. File: `plugins/devkit/skills/check/SKILL.md`.
+- [x] Add these to the skill: the same `allow` entry; prune with `prune_preview` in the safe-fix question; one question per `merged` worktree, naming its path, its branch, and its ignored entries. File: `plugins/devkit/skills/check-fix/SKILL.md`.
+- [x] Add a line to the P-32 entry: worktrees. File: `CHANGELOG.md`.
 - Verify:
   - `claude plugin validate plugins/devkit --strict && claude plugin validate .` passes.
   - `grep -c 'worktree-status.sh' plugins/devkit/skills/check/SKILL.md plugins/devkit/skills/check-fix/SKILL.md` is 1 or more in each file.
