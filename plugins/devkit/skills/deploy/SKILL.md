@@ -9,7 +9,7 @@ disable-model-invocation: true
 
 Target environment: `$ARGUMENTS` (default: staging then prod).
 
-Conventions: `${CLAUDE_PLUGIN_ROOT}/references/conventions.md`. Use a task list for the gates below. **Stop at the first red gate** and report the error.
+Conventions: `${CLAUDE_PLUGIN_ROOT}/references/conventions.md`. Use a task list for the gates below. **Stop at the first red gate** and report the error. Every confirmation below (Gates 1, 3, 5) needs an explicit yes per the conventions' "Approval" section; anything else → ask again, never proceed.
 
 ## Gate 1 — Preflight
 
@@ -68,4 +68,4 @@ Note: if the deploy command is known to be slow, prepend `timeout 300` to avoid 
 
 ## Reply
 
-A table of the 5 gates (passed / failed / skipped with reason), the staging URL, the production URL, and the suggested next action.
+A table of the 5 gates (passed / failed / skipped with reason), who confirmed staging and production and when (`<name>`, local time), the staging URL, the production URL, and the suggested next action.

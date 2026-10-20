@@ -13,9 +13,11 @@ Conventions: `${CLAUDE_PLUGIN_ROOT}/references/conventions.md` — pass this pat
 
 ## 0. Is there a plan?
 
-- Input is a `plan.md` with `Status: approved` → use it.
-- Input is a `draft` plan → present its summary again and ask for approval (unless `--auto`).
+- Input is a `plan.md` with `Status: approved` or `in-progress` and an `Approved:` line with a `YYYY-MM-DD` date and a name (`unknown` counts; the `<name>` placeholder doesn't) → use it.
+- A `done` plan → say so and stop.
+- Any other plan (`draft`, or `approved`/`in-progress` with no such line) → present its summary again and ask for approval (unless `--auto`).
 - Input is a request → follow the `/devkit:plan` procedure (read `${CLAUDE_PLUGIN_ROOT}/skills/plan/SKILL.md`), in `--fast` mode for small requests. With `--auto`, don't wait for plan approval; otherwise **wait for approval**.
+- Approval is an explicit yes per the conventions' "Approval" section; a hedge or no reply → ask again, never proceed. On a yes, add `Approved: YYYY-MM-DD by <name>` under the `Status:` line if the plan has none (with `--auto`, append ` (--auto)`); never replace an existing one.
 - Set the plan to `Status: in-progress`; write its path to `.claude/current-task`.
 - On the main branch → create a `feat/<slug>` (or `fix/…`) branch following the repo's convention before editing code.
 

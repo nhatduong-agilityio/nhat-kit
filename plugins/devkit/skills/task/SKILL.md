@@ -41,7 +41,7 @@ Have the `devkit:requirements-analyst` subagent check the SPEC against `docs/PRO
 - Use `Explore` subagents to find the relevant files and existing patterns to follow.
 - Write the "Plan" section of the SPEC: files to change, order, risks, how each AC will be verified.
 - Small tasks (the diff fits in one sentence) need only a 3-line plan.
-- **Present the plan and wait for the user's approval.** Suggest `Ctrl+G` to edit it directly.
+- **Present the plan and wait for the user's approval**, an explicit yes per the conventions' "Approval" section (this also covers the size go-ahead and the push below). Suggest `Ctrl+G` to edit it directly.
 
 ## 5. Branch
 
@@ -64,7 +64,7 @@ If on the main branch, create a branch following the convention in CLAUDE.md (de
 
 - Update the SPEC: mark each AC as met with its evidence; record the assumptions used.
 - Commit through the `devkit:git-manager` subagent (operation `commit`, `Refs: <TASK_ID>`).
-- Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/pr-size.sh <base>` (`<base>` = the branch the PR will target, usually the default branch); exit 1 → report it and ask; over the limit → propose a split and continue only if the user says so (note it in Risks and impact).
+- Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/pr-size.sh <base>` (`<base>` = the branch the PR will target, usually the default branch); exit 1 → report it and ask; over the limit → propose a split and continue only if the user says so (note "oversized: N lines / M files, approved by <name> on YYYY-MM-DD" in Risks and impact).
 - Write `report.json` with the review findings and test counts, render and publish it per the conventions (plus a condensed checklist summary, one line per PR-template checklist item, evidenced or not), or keep the fallback full content when no Artifact tool is available.
 - **Ask before pushing.** Then have `devkit:git-manager` run `push` and `pr` using `.github/pull_request_template.md`, passing either (a) the report artifact link, the condensed checklist summary, and the Risks-and-impact text, or (b), when no Artifact tool was available, the full report content for the fallback inline body.
 - Update the item's status in `docs/BACKLOG.md` if present.

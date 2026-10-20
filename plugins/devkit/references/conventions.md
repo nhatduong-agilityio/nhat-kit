@@ -27,6 +27,7 @@ All artifacts are written in English: code, comments, commit messages, plans, sp
 ```markdown
 # <Title>
 Status: draft | approved | in-progress | done · Source: <request / SPEC / issue>
+Approved: YYYY-MM-DD by <name>
 
 ## Goal
 1–3 sentences. A visible outcome when done.
@@ -55,6 +56,15 @@ The chosen approach and why; one line per rejected alternative.
 Every phase must be self-verifiable: when it ends, a command produces pass/fail. Keep a phase under ~300 changed lines.
 
 A phase heading may carry a trailing issue-link suffix: exactly one `(#<digits>)`-shaped token — e.g. `### Phase 1 — <name> (#42)` — as the LAST thing on the heading line. It is written only by `/devkit:plan sync` itself, when it links that phase to a GitHub issue; a heading without it is simply unsynced. A heading carrying more than one such trailing token, or a malformed one, is not something sync acts on silently — it is reported instead.
+
+The `Approved:` line is not part of a draft: it is added on approval and kept through `in-progress` and `done`; a draft has none. It is a line of its own, so status edits never touch it.
+
+## Approval
+
+Gates that wait for the user (plan approval, an oversized PR, a push, a deploy) pass only on an explicit yes in reply to the question: "yes", "approve", "go", "LGTM", or the same in the user's language. Silence, a hedge ("probably", "I guess"), a question, a conditional ("yes if…"), or a change request is not a yes: stop and ask again in plain words. Never proceed on an assumed yes.
+
+- `--auto` on `/devkit:cook` is the user's explicit yes for that run; record it as `Approved: YYYY-MM-DD by <name> (--auto)`.
+- `<name>`: `gh api user --jq .login`; if that fails, `git config user.name`; if both fail, `unknown`. Never guess a name. The date is local, `YYYY-MM-DD`.
 
 ## Evidence
 

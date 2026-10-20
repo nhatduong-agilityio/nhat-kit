@@ -48,7 +48,7 @@ Apply the valid findings to the plan; record rejected findings and why at the en
 
 - Present a summary: goal, approach, phases (one line each), key risks, decisions needed. Suggest `Ctrl+G` or opening the file to edit it.
 - If the plan has any High or Critical risk, suggest enabling `/advisor fable` for the cook phase so a second model gives guidance at key moments.
-- **Wait for the user's approval.** On approval: set `Status: approved` and write the plan path to `.claude/current-task`.
+- **Wait for the user's approval**, an explicit yes per the conventions' "Approval" section. On approval: set `Status: approved`, add the line `Approved: YYYY-MM-DD by <name>` under it if the plan has none (never replace an existing one), and write the plan path to `.claude/current-task`.
 - Next step: `/devkit:cook plans/<...>/plan.md`.
 
 ## 7. Sync (plan ↔ tracker)
