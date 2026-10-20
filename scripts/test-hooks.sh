@@ -666,6 +666,145 @@ mkdir -p "$psd/bpnogh"; ln -sf "$(command -v python3)" "$psd/bpnogh/python3"
 (cd "$root" && PATH="$psd/bpnogh" /bin/bash "$bp" >/dev/null 2>&1); got=$?
 row branch-protection "gh missing from PATH is exit 1" 1 "$got" 0 "expected exit 1"
 
+# --- team-status / team-fix labels: stub gh on PATH, scenario chosen by TS_CASE ---
+# Stub contract (the scripts under test must make no other gh call; any other call exits 1):
+#   gh auth status --json hosts
+#       -> {"hosts":{"<host>":[{"active":bool,"host":..,"login":..,"scopes":"repo, read:org"}]}} (scopes is ONE comma+space string)
+#          TS_CASE=loggedout prints {"hosts":{}} and exits 1; loggedout0 prints the same and exits 0 (both mean auth=none).
+#          empty prints nothing, nohosts prints {}, autherror sets "state":"failure"; norepo makes repo view fail.
+#          The active entry for github.com, or for $GH_HOST when set, decides login and scopes.
+#   gh repo view --json nameWithOwner,visibility,viewerPermission
+#       -> {"nameWithOwner":"octo/demo","visibility":"PRIVATE","viewerPermission":"ADMIN"} (TS_CASE=write gives WRITE)
+#   gh label list --json name --limit 500
+#       -> JSON array of {"name":..} for the names in TS_LABELS (comma list; default "bug,enhancement" = no queue label);
+#          TS_LABELS=fail exits 1 with stderr.
+#   gh label create <name> --color <hex> --description <text>
+#       -> exit 0 and prints a URL; when <name> equals TS_CREATE_FAIL it prints
+#          `label with name "<name>" already exists` on stderr and exits 1 (no HTTP code, as gh does).
+# Every call is logged as one line "$*" to $TS_LOG. `--jq`/`-q` and `--force` are never passed: the stub exits 64.
+# The scripts parse raw JSON themselves (python3 -I). GH_HOST is unset by tsck unless TS_HOST is given.
+ts="$root/plugins/devkit/scripts/team-status.sh"
+tf_="$root/plugins/devkit/scripts/team-fix.sh"
+mkdir -p "$psd/tsbin"
+cat >"$psd/tsbin/gh" <<'STUB'
+#!/bin/sh
+[ -n "${TS_LOG:-}" ] && echo "$*" >>"$TS_LOG"
+for a in "$@"; do case "$a" in --jq|-q|--force|-f) echo "stub: forbidden flag $a" >&2; exit 64 ;; esac; done
+c="${TS_CASE:-ok}"
+case "$1 $2" in
+  "auth status")
+    [ "$3 $4" = "--json hosts" ] || exit 64
+    case "$c" in
+      loggedout) echo '{"hosts":{}}'; exit 1 ;;
+      loggedout0) echo '{"hosts":{}}'; exit 0 ;;
+      empty) exit 0 ;;
+      nohosts) echo '{}'; exit 0 ;;
+      autherror) s="repo"; st=failure ;;
+      noscope) s="read:org, gist" ;;
+      publicrepo) s="public_repo, gist" ;;
+      emptyscopes) s="" ;;
+      *) s="repo, read:org, gist" ;;
+    esac
+    if [ "$c" = twohosts ]; then
+      echo '{"hosts":{"github.com":[{"active":true,"host":"github.com","login":"gh-user","scopes":"repo, gist"}],"ghe.example.com":[{"active":false,"host":"ghe.example.com","login":"old-user","scopes":"repo"},{"active":true,"host":"ghe.example.com","login":"ghe-user","scopes":"gist"}]}}'
+    else
+      printf '{"hosts":{"github.com":[{"state":"%s","active":true,"host":"github.com","login":"octo","scopes":"%s"}]}}\n' "${st:-success}" "$s"
+    fi ;;
+  "repo view")
+    [ "$3" = "--json" ] && [ "$c" != norepo ] || exit 64
+    p=ADMIN; [ "$c" = write ] && p=WRITE
+    printf '{"nameWithOwner":"octo/demo","visibility":"PRIVATE","viewerPermission":"%s"}\n' "$p" ;;
+  "label list")
+    [ "${TS_LABELS:-}" = fail ] && { echo "gh: HTTP 500" >&2; exit 1; }
+    printf '['; sep=""
+    for n in $(echo "${TS_LABELS:-bug,enhancement}" | tr ',' ' '); do printf '%s{"name":"%s"}' "$sep" "$n"; sep=","; done
+    echo ']' ;;
+  "label create")
+    if [ "$3" = "${TS_CREATE_FAIL:-}" ]; then echo "label with name \"$3\" already exists" >&2; exit 1; fi
+    echo "https://github.com/octo/demo/labels/$3" ;;
+  *) exit 1 ;;
+esac
+STUB
+chmod +x "$psd/tsbin/gh"
+all6="ai,severity:critical,severity:high,severity:medium,severity:low,in-progress"
+tsck() { # tsck <name> <TS_CASE> <exp exit> <expected substring>... (script TS_SCRIPT default status; args via TS_ARGS; TS_LOG recorded)
+  local name="$1" cs="$2" ex="$3" got script="${TS_SCRIPT:-$ts}"; shift 3
+  : >"$psd/ts.log"
+  (cd "$root" && env -u GH_HOST ${TS_HOST:+GH_HOST=$TS_HOST} PATH="$psd/tsbin:$PATH" TS_CASE="$cs" TS_LOG="$psd/ts.log" "$script" ${TS_ARGS:-} >"$out" 2>/dev/null); got=$?
+  row team-status "$name" "$ex" "$got" 0 "exit code differs (script missing?)"
+  local s; for s in "$@"; do grep -qF -- "$s" "$out"; row team-status "$name: $s" 0 $? 0 "missing: $s"; done
+}
+tsline() { # tsline <name> <exact line>: the last tsck output has this line exactly
+  grep -qxF -- "$2" "$out"; row team-status "$1" 0 $? 0 "no exact line: $2"
+}
+tslog() { # tslog <name> <fixed string> <expected count in the gh log>
+  local n; n="$(grep -cF -- "$2" "$psd/ts.log")"; [ -s "$psd/ts.log" ] && [ "$n" = "$3" ]; row team-status "$1" 0 $? 0 "log count $n, expected $3 for: $2"
+}
+
+# team-status: login and scopes
+tsck "logged in with repo scope" ok 0 "auth=ok login=octo" "missing_scopes=-"
+tsck "scopes without repo" noscope 0 "auth=ok" "missing_scopes=repo"
+tsck "public_repo is not repo" publicrepo 0 "missing_scopes=repo"
+tsck "empty scopes are unknown, not missing" emptyscopes 0 "scopes=unknown missing_scopes=unknown"
+tsck "two hosts: github.com by default" twohosts 0 "login=gh-user" "missing_scopes=-"
+[ -s "$out" ] && ! grep -qF "ghe-user" "$out"; row team-status "default host does not leak ghe login" 0 $? 0 "ghe-user leaked"
+TS_HOST=ghe.example.com tsck "two hosts: GH_HOST picks the active entry" twohosts 0 "login=ghe-user" "missing_scopes=repo"
+[ -s "$out" ] && ! grep -qE "old-user|gh-user" "$out"; row team-status "GH_HOST: other logins do not leak" 0 $? 0 "wrong login leaked"
+tsck "logged out (exit 1) is auth=none" loggedout 0 "auth=none" "permission=unknown" "labels_missing=unknown"
+tsck "logged out (exit 0) is auth=none" loggedout0 0 "auth=none" "permission=unknown" "labels_missing=unknown"
+tsck "token state failure is auth=error" autherror 0 "auth=error login=octo scopes=- missing_scopes=-" "permission=unknown" "labels_missing=unknown"
+tsck "empty auth output is exit 1" empty 1
+tsck "auth JSON without hosts is exit 1" nohosts 1
+tsck "repo view fails: unknown fields" norepo 0 "repo=unknown visibility=unknown permission=unknown"
+tsck "exactly three lines" ok 0 "repo=octo/demo"
+[ "$(wc -l <"$out" | tr -d ' ')" = 3 ]; row team-status "output is exactly three lines" 0 $? 0 "expected 3 lines"
+# team-status: repo permission and labels
+tsck "permission ADMIN and visibility" ok 0 "repo=octo/demo" "visibility=PRIVATE" "permission=ADMIN"
+tsck "permission WRITE" write 0 "permission=WRITE"
+TS_LABELS="$all6,bug" tsck "all queue labels present" ok 0
+tsline "all present: labels_missing=-" "labels_missing=-"
+TS_LABELS="ai,severity:high,bug" tsck "some labels present" ok 0
+tsline "exact missing list, table order" "labels_missing=severity:critical,severity:medium,severity:low,in-progress"
+tsck "no queue label present: all six missing" ok 0
+tsline "all six missing, table order" "labels_missing=$all6"
+TS_LABELS=fail tsck "label list fails: unknown" ok 0
+tsline "label list failure is labels_missing=unknown" "labels_missing=unknown"
+# team-status --missing-labels
+TS_ARGS=--missing-labels tsck "missing-labels: all six rows" ok 0
+for r in "ai${T}5319e7${T}" "severity:critical${T}b60205${T}" "severity:high${T}d93f0b${T}" "severity:medium${T}fbca04${T}" "severity:low${T}c2e0c6${T}" "in-progress${T}1d76db${T}"; do
+  grep -q "^${r}[^${T}][^${T}]*$" "$out"; row team-status "missing-labels row: ${r%%$T*}" 0 $? 0 "no name/color/description row"
+done
+[ "$(wc -l <"$out" | tr -d ' ')" = 6 ]; row team-status "missing-labels: only the six rows" 0 $? 0 "expected 6 lines"
+TS_LABELS="ai,severity:critical,severity:high,severity:medium,bug" TS_ARGS=--missing-labels tsck "missing-labels: only absent ones" ok 0
+[ "$(wc -l <"$out" | tr -d ' ')" = 2 ] && grep -q "^severity:low${T}c2e0c6${T}" "$out" && grep -q "^in-progress${T}1d76db${T}" "$out"; row team-status "missing-labels lists exactly low, in-progress" 0 $? 0 "wrong rows"
+TS_LABELS="$all6" TS_ARGS=--missing-labels tsck "missing-labels: none missing prints nothing" ok 0
+[ -s "$psd/ts.log" ] && [ ! -s "$out" ]; row team-status "missing-labels: empty output when complete" 0 $? 0 "expected no output"
+# team-fix labels
+TS_SCRIPT="$tf_" TS_ARGS=labels TS_LABELS="ai,severity:high,bug" tsck "fix labels: creates only the missing four" ok 0 "action=labels" "label=severity:critical result=created" "label=severity:medium result=created" "label=severity:low result=created" "label=in-progress result=created"
+tslog "fix labels: one create per missing label" "label create " 4
+tslog "fix labels: critical color and description flag" "label create severity:critical --color b60205 --description" 1
+tslog "fix labels: existing ai is not created" "label create ai " 0
+tslog "fix labels: existing severity:high is not created" "label create severity:high " 0
+[ -s "$psd/ts.log" ] && ! grep -qF -- "--force" "$psd/ts.log"; row team-status "fix labels: never --force" 0 $? 0 "--force in log"
+grep -qF "result=created" "$out" && ! grep -qF "label=ai " "$out"; row team-status "fix labels: no output line for ai" 0 $? 0 "ai reported"
+TS_SCRIPT="$tf_" TS_ARGS=labels TS_CREATE_FAIL=severity:medium TS_LABELS=bug tsck "fix labels: one create fails, exit 0" ok 0 "label=severity:medium result=failed detail=" "already exists" "label=ai result=created" "label=severity:critical result=created" "label=severity:high result=created" "label=severity:low result=created" "label=in-progress result=created"
+tslog "fix labels: failure does not stop the rest" "label create " 6
+TS_SCRIPT="$tf_" TS_ARGS=labels TS_LABELS="$all6" tsck "fix labels: nothing missing" ok 0 "result=none_missing"
+tslog "fix labels: no create when nothing missing" "label create" 0
+TS_SCRIPT="$tf_" TS_ARGS=labels TS_LABELS=fail tsck "fix labels: list fails" ok 0 "action=labels result=failed detail=team-status: cannot list labels"
+tslog "fix labels: no create when the list fails" "label create" 0
+TS_SCRIPT="$tf_" TS_ARGS=bogus tsck "team-fix: unknown action is exit 1" ok 1
+TS_SCRIPT="$tf_" TS_ARGS=prune tsck "team-fix: not_implemented is exit 1" ok 1 "action=prune result=not_implemented"
+mkdir -p "$psd/tfbad"; cp "$tf_" "$psd/tfbad/"; printf '#!/bin/sh\necho "warn\tffffff\tnoise" >&2\nprintf "ai\\tzz\\tx\\nbad\\t5319e7\\n"\n' >"$psd/tfbad/team-status.sh"
+TS_SCRIPT="$psd/tfbad/team-fix.sh" TS_ARGS=labels tsck "fix labels: bad rows skipped" ok 0 "label=ai result=failed detail=bad row" "label=bad result=failed detail=bad row"
+! grep -qF "label=warn" "$out" && ! grep -qF "label create" "$psd/ts.log"; row team-status "fix labels: stderr is not a row; no create" 0 $? 0 "stderr row or create"
+# gh missing from PATH: both scripts exit 1
+mkdir -p "$psd/tsnogh"; ln -sf "$(command -v python3)" "$psd/tsnogh/python3"; ln -sf "$(command -v git)" "$psd/tsnogh/git"
+(cd "$root" && PATH="$psd/tsnogh" /bin/bash "$ts" >/dev/null 2>&1); got=$?
+row team-status "team-status: gh missing is exit 1" 1 "$got" 0 "expected exit 1"
+(cd "$root" && PATH="$psd/tsnogh" /bin/bash "$tf_" labels >/dev/null 2>&1); got=$?
+row team-status "team-fix labels: gh missing is exit 1" 1 "$got" 0 "expected exit 1"
+
 expect "$notify" 0 "always exits 0" '{"message":"test"}'
 
 echo "$cases cases, $nfail failed, total $total ms"
