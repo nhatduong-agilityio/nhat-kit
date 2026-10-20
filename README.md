@@ -1,6 +1,6 @@
 # claude-kit — an engineering kit for Claude Code, for solo engineers and teams
 
-The `nhat-kit` marketplace contains the **devkit 2.4.0** plugin: 18 commands, 10 subagents, 3 hooks (`protect-files`, `block-force-push` — also blocks `gh pr merge --admin` and self-approval, `notify`), and 4-layer project templates. It works for one engineer and for a team pulling from one shared GitHub issue queue (claims, plan ↔ tracker sync, PR report artifacts); squad orchestration is the next stage (`upstream/proposals/20261018.md`). It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
+The `nhat-kit` marketplace contains the **devkit 2.4.0** plugin: 19 commands, 10 subagents, 3 hooks (`protect-files`, `block-force-push` — also blocks `gh pr merge --admin` and self-approval, `notify`), and 4-layer project templates. It works for one engineer and for a team pulling from one shared GitHub issue queue (claims, plan ↔ tracker sync, PR report artifacts); squad orchestration is the next stage (`upstream/proposals/20261018.md`). It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
 
 ## Commands
 
@@ -25,9 +25,10 @@ The `nhat-kit` marketplace contains the **devkit 2.4.0** plugin: 18 commands, 10
 | `/devkit:deploy [staging\|prod] [--dry-run]` | After a PR merges: deploy to staging then prod | deployer |
 | `/devkit:retro` | After a task where you had to correct Claude several times | — |
 | `/devkit:check` | Health-check a project's 4 layers | — |
+| `/devkit:check-fix` | After `check` reports team setup gaps: create missing queue labels after one yes; login gaps shown as manual steps | — |
 | `/devkit:security-scan` | Whole-project scan: leaked secrets, vulnerable dependencies (installed audit tools only), sensitive tracked files, risky code sinks → redacted report; `/security-review` covers the branch diff | security-scanner |
 
-Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`, `review`, `scout`, `brainstorm`. These run only when you type them, because they have side effects or run a long interview: `bootstrap`, `task`, `cook`, `git`, `ship`, `deploy`, `retro`, `check`, `grill`, `issue`, `security-scan`.
+Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`, `review`, `scout`, `brainstorm`. These run only when you type them, because they have side effects or run a long interview: `bootstrap`, `task`, `cook`, `git`, `ship`, `deploy`, `retro`, `check`, `check-fix`, `grill`, `issue`, `security-scan`.
 
 ## Model tiers
 
@@ -210,7 +211,7 @@ claude-kit/
 ├── user-setup/{settings.json,CLAUDE.md}
 └── plugins/devkit/
     ├── .claude-plugin/plugin.json
-    ├── skills/      18 commands
+    ├── skills/      19 commands
     ├── agents/      10 subagents
     ├── hooks/hooks.json, scripts/
     ├── references/conventions.md
