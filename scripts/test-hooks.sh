@@ -381,6 +381,106 @@ mkdir -p "$psd/norepo"
 (cd "$psd/norepo" && "$ps" main >/dev/null 2>&1); got=$?
 row pr-size "not a repo is exit 1" 1 "$got" 0 "expected exit 1"
 
+# --- block-protected-push: template copy with {{PROTECTED_BRANCHES}} substituted, run in a temp repo ---
+# Placed after the pr-size repo helpers because it reuses mkrepo.
+ptpl="$root/plugins/devkit/templates/hooks/block-protected-push.sh"
+pgn=0
+pushgate() { # pushgate <list|@unfilled> <branch> <upstream: none|origin/main> <exp> <name> <command> [stderr substring]
+  local copy="$gd/block-protected-push.sh" json cmd
+  pgn=$((pgn + 1)); mkrepo "pg$pgn"
+  [ "$2" = main ] && git -C "$r" checkout -q main
+  [ "$2" = detached ] && git -C "$r" checkout -q --detach
+  if [ "$3" != none ]; then
+    git -C "$r" remote add origin "$r/.git"
+    git -C "$r" config "branch.$2.remote" origin
+    git -C "$r" config "branch.$2.merge" "refs/heads/${3#origin/}"
+  fi
+  rm -f "$copy"
+  if [ "$1" = "@unfilled" ]; then cp "$ptpl" "$copy" 2>/dev/null
+  else python3 -c 'import sys; t=open(sys.argv[1]).read(); open(sys.argv[2],"w").write(t.replace("{{PROTECTED_BRANCHES}}", sys.argv[3]))' "$ptpl" "$copy" "$1" 2>/dev/null; fi
+  chmod +x "$copy" 2>/dev/null
+  cmd="${6//@REPO/$r}"
+  case "$cmd" in "{"*|not*) json="$cmd" ;; *)
+    json="$(python3 -c 'import json,sys; print(json.dumps({"tool_input":{"command":sys.argv[1]}}))' "$cmd")" ;; esac
+  CLAUDE_PROJECT_DIR="$r" expect "$copy" "$4" "pushgate: $5" "$json"
+  if [ -n "${7:-}" ]; then
+    grep -qF -- "$7" "$err"; row block-protected-push "pushgate: stderr has $7" 0 $? 0 "stderr missing text"
+    grep -qF -- "main" "$err"; row block-protected-push "pushgate: stderr has branch name" 0 $? 0 "branch name missing"
+  fi
+}
+PL='main release/*'
+pushgate "$PL" feat none 2 "push origin main" 'git push origin main'
+pushgate "$PL" feat none 2 "push -u origin main" 'git push -u origin main'
+pushgate "$PL" feat none 2 "push origin HEAD:main" 'git push origin HEAD:main'
+pushgate "$PL" feat none 2 "push origin feat:refs/heads/main" 'git push origin feat:refs/heads/main'
+pushgate "$PL" feat none 2 "push origin +feat:main" 'git push origin +feat:main'
+pushgate "$PL" feat none 2 "push origin :main (delete)" 'git push origin :main'
+pushgate "$PL" feat none 2 "push --delete origin main" 'git push --delete origin main'
+pushgate "$PL" feat none 2 "push origin release/1.2 (glob)" 'git push origin release/1.2'
+pushgate "$PL" feat none 2 "push --all origin" 'git push --all origin'
+pushgate "$PL" feat none 2 "push --mirror" 'git push --mirror'
+pushgate "$PL" main none 2 "git -C repo push on main" 'git -C @REPO push'
+pushgate "$PL" main none 2 "bare push on main" 'git push'
+pushgate "$PL" feat origin/main 2 "bare push on feat with upstream main" 'git push'
+pushgate "$PL" feat none 2 "cd x && git push origin main" 'cd x && git push origin main'
+pushgate "$PL" feat none 2 "FOO=1 git push origin main" 'FOO=1 git push origin main'
+pushgate "$PL" feat none 2 "git --git-dir .git push origin main" 'git --git-dir .git push origin main'
+pushgate "$PL" feat none 2 "block message" 'git push origin main' 'Blocked by devkit'
+pushgate "$PL" feat none 0 "push origin feat" 'git push origin feat'
+pushgate "$PL" feat none 0 "bare push on feat, no upstream" 'git push'
+pushgate "$PL" feat none 0 "push --tags" 'git push --tags'
+pushgate "$PL" feat none 0 "push origin refs/tags/v1.0" 'git push origin refs/tags/v1.0'
+pushgate "$PL" feat none 0 "push origin v1.0" 'git push origin v1.0'
+pushgate "$PL" feat none 0 "git status is not a push" 'git status'
+pushgate "$PL" feat none 0 "git log --grep push is not a push" 'git log --grep push'
+pushgate "main,release/*" feat none 2 "comma list: push origin main" 'git push origin main'
+pushgate "main,release/*" feat none 2 "comma list: push origin release/2" 'git push origin release/2'
+pushgate "main,release/*" feat none 0 "comma list: push origin feat" 'git push origin feat'
+pushgate "$PL" feat none 2 "push -d origin main (short delete flag)" 'git push -d origin main'
+pushgate "$PL" main none 2 "push origin HEAD on main" 'git push origin HEAD'
+pushgate "$PL" feat none 0 "push origin HEAD on feat" 'git push origin HEAD'
+pushgate "$PL" feat none 2 "push -o value skipped, then main" 'git push -o ci.skip origin main'
+pushgate "$PL" feat none 0 "push -o main value is not a refspec" 'git push -o main origin feat'
+pushgate "$PL" feat none 2 "push --repo=x origin main" 'git push --repo=x origin main'
+pushgate "$PL" feat none 2 "sudo git push origin main" 'sudo git push origin main'
+pushgate "$PL" feat none 2 "/usr/bin/git push origin main" '/usr/bin/git push origin main'
+pushgate "$PL" detached none 0 "bare push on detached HEAD" 'git push'
+pushgate "$PL" feat none 0 "push origin mainline (glob does not over-match)" 'git push origin mainline'
+pushgate "$PL" feat none 2 "second segment pushes main (&&)" 'git push origin feat && git push origin main'
+pushgate "$PL" feat none 0 "main only in a later non-push segment" 'git push origin feat; echo main'
+pushgate @unfilled feat none 0 "unfilled placeholder allows" 'git push origin main'
+pushgate "" feat none 0 "empty list allows" 'git push origin main'
+pushgate "$PL" feat none 0 "malformed JSON allowed" 'not json'
+pushgate "$PL" feat none 0 "empty input allowed" '{}'
+pushgate "$PL" main none 2 "push origin 2>&1 on main" 'git push origin 2>&1'
+pushgate "$PL" main none 2 "push origin >&/dev/null on main" 'git push origin >&/dev/null'
+pushgate "$PL" main none 2 "push >& /dev/null on main" 'git push >& /dev/null'
+pushgate "$PL" main none 2 "push -u origin 2>&1 on main" 'git push -u origin 2>&1'
+pushgate "$PL" main none 2 "push origin 2>&1 | tail -3 on main" 'git push origin 2>&1 | tail -3'
+pushgate "$PL" main none 2 "push origin > /tmp/log on main" 'git push origin > /tmp/log'
+pushgate "$PL" main none 2 "push >/dev/null 2>&1 on main" 'git push >/dev/null 2>&1'
+pushgate "$PL" main none 0 "push origin feat 2>&1 on main" 'git push origin feat 2>&1'
+pushgate "$PL" feat none 2 "push origin refs/tags/v1:refs/heads/main" 'git push origin refs/tags/v1:refs/heads/main'
+pushgate "$PL" main none 2 "push origin @ on main" 'git push origin @'
+pushgate "$PL" feat none 2 "sudo -E git push origin main" 'sudo -E git push origin main'
+pushgate " , " feat none 0 "list of only separators allows --all" 'git push --all origin'
+# Worktrees: the hook runs in the JSON cwd (else CLAUDE_PROJECT_DIR) and follows `cd <dir>` segments.
+mkdir -p "$gd/wt"
+python3 -c 'import sys; t=open(sys.argv[1]).read(); open(sys.argv[2],"w").write(t.replace("{{PROTECTED_BRANCHES}}", sys.argv[3]))' "$ptpl" "$gd/wt/block-protected-push.sh" "$PL"
+chmod +x "$gd/wt/block-protected-push.sh"
+pgwt() { # pgwt <exp> <name> <project dir> <json cwd or ""> <command>
+  local json
+  json="$(python3 -c 'import json,sys; d={"tool_input":{"command":sys.argv[1]}}; d.update({"cwd":sys.argv[2]} if sys.argv[2] else {}); print(json.dumps(d))' "$5" "$4")"
+  CLAUDE_PROJECT_DIR="$3" expect "$gd/wt/block-protected-push.sh" "$1" "pushgate: $2" "$json"
+}
+mkrepo pgwtmain; git -C "$r" checkout -q main; git -C "$r" worktree add -q "$psd/pgwtmain-feat" feat
+pgwt 0 "cd <worktree on feat> && push -u origin HEAD" "$r" "" "cd $psd/pgwtmain-feat && git push -u origin HEAD"
+pgwt 0 "bare push with JSON cwd = worktree on feat" "$r" "$psd/pgwtmain-feat" 'git push'
+pgwt 2 "bare push, no cwd, project dir on main" "$r" "" 'git push'
+mkrepo pgwtfeat; git -C "$r" worktree add -q "$psd/pgwtfeat-main" main
+pgwt 2 "bare push with JSON cwd = worktree on main" "$r" "$psd/pgwtfeat-main" 'git push'
+pgwt 0 "cd to a missing dir keeps the current one" "$r" "" 'cd /nonexistent-devkit && git push'
+
 # --- queue-status: stub gh on PATH returns canned JSON per subcommand ---
 qs="$root/plugins/devkit/scripts/queue-status.sh"
 mkdir -p "$psd/qsbin"

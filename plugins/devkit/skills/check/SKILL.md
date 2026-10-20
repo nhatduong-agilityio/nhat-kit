@@ -13,6 +13,7 @@ Read only; change nothing. Return one table: Layer · Item · Status (OK / Missi
 - `.claude/settings.json` exists and is valid JSON; commands in `allow` still exist in the project's scripts.
 - A `deny` for `.env*`; an `ask` for `git push`.
 - Every referenced hook script exists and is executable.
+- If `CLAUDE.md` lists protected branches: `.claude/hooks/block-protected-push.sh` exists, is executable, is wired in `PreToolUse` in `settings.json`, and has no `{{` left. Otherwise Needs fix.
 
 **Layer 2 — Memory**
 - `CLAUDE.md` exists, is under 120 lines, and its commands match the real scripts.
