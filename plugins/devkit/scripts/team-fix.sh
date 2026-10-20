@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
-# The only devkit script that writes team setup to GitHub. One action per call; run only after the user said yes.
+# The only devkit script that writes team setup to GitHub and removes local worktrees. One action per call; run only after the user said yes.
 # Usage: team-fix.sh <labels|prune|remove-worktree|ruleset> [args]
 #   labels  create the queue labels that team-status.sh --missing-labels reports (never --force, never touches existing labels)
-#   prune, remove-worktree, ruleset  not implemented yet
+#   prune   git worktree prune -v; prints "result=done pruned=N"
+#   remove-worktree <path> <ignored count>  remove one worktree that worktree-status.sh reports as merged now, with the ignored
+#     count the user was shown: git worktree remove -- <path>, never --force, never deletes the branch
+#     result=removed path=<p> branch_kept=<b>, or result=refused
+#     reason=unsafe_path|missing_count|not_a_worktree|current|<state of the row, e.g. kept>|ignored_changed
+#   ruleset  not implemented yet
 # Output: lines starting "action=<a> result=<r>"; labels adds one "label=<name> result=created|failed [detail=<one line>]" line per label.
 #   labels: result=started before the label lines; result=none_missing when nothing is missing; result=failed detail=... when the missing list cannot be read.
-# Exit: 0 for every reported outcome, 1 when gh, git or python3 is missing, the action is unknown, or the action is not implemented.
+# Exit: 0 for every reported outcome, 1 when git or python3 is missing (gh too for labels and ruleset), the action is unknown,
+#   or the action is not implemented.
 
-for c in python3 gh git; do command -v "$c" >/dev/null 2>&1 || { echo "team-fix: $c required" >&2; exit 1; }; done
+need() { local c; for c in "$@"; do command -v "$c" >/dev/null 2>&1 || { echo "team-fix: $c required" >&2; exit 1; }; done; }
+need python3 git
 # Plain output only: no colour or forced-TTY formatting.
 ghq() { ( unset CLICOLOR_FORCE GH_FORCE_TTY; NO_COLOR=1 gh "$@" ); }
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,9 +43,33 @@ EOT
   return 0
 }
 
+do_prune() {
+  local out n; out="$(LC_ALL=C git worktree prune -v 2>&1)" || { echo "action=prune result=failed detail=$(oneline "$out")"; return 0; }
+  n="$(printf '%s\n' "$out" | awk '/^Removing/ { n++ } END { print n + 0 }')"
+  echo "action=prune result=done pruned=$n"
+}
+
+do_remove() {
+  local p="${1:-}" want="${2:-}" row st br cnt t; t="$(printf '\t')"
+  case "$p" in ""|*[[:cntrl:]]*) echo "action=remove-worktree result=refused reason=unsafe_path"; return 0 ;; esac
+  case "$want" in ""|*[!0-9]*|???????*) echo "action=remove-worktree result=refused reason=missing_count"; return 0 ;; esac
+  p="$(python3 -I -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$p")"
+  row="$(bash "$here/worktree-status.sh" 2>/dev/null | P="$p" awk -F "$t" '$5 == ENVIRON["P"] && $1 != "prune_preview" { print $1 "\t" $2 "\t" $3; exit }')"
+  [ -n "$row" ] || { echo "action=remove-worktree result=refused reason=not_a_worktree"; return 0; }
+  [ "$p" != "$(python3 -I -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$(git rev-parse --show-toplevel 2>/dev/null)")" ] \
+    || { echo "action=remove-worktree result=refused reason=current"; return 0; }
+  st="${row%%"$t"*}"; br="${row#*"$t"}"; cnt="${br#*"$t"}"; br="${br%%"$t"*}"
+  [ "$st" = merged ] || { echo "action=remove-worktree result=refused reason=$st"; return 0; }
+  want="${want#"${want%%[!0]*}"}"; [ "$cnt" = "${want:-0}" ] || { echo "action=remove-worktree result=refused reason=ignored_changed"; return 0; }
+  if out="$(git worktree remove -- "$p" 2>&1)"; then echo "action=remove-worktree result=removed path=$p branch_kept=$br"
+  else echo "action=remove-worktree result=failed detail=$(oneline "$out")"; fi
+}
+
 action="${1:-}"
 case "$action" in
-  labels) do_labels ;;
-  prune|remove-worktree|ruleset) echo "action=$action result=not_implemented"; exit 1 ;;
+  labels) need gh; do_labels ;;
+  prune) do_prune ;;
+  remove-worktree) do_remove "${2:-}" "${3:-}" ;;
+  ruleset) need gh; echo "action=$action result=not_implemented"; exit 1 ;;
   *) echo "team-fix: usage: team-fix.sh <labels|prune|remove-worktree|ruleset>" >&2; exit 1 ;;
 esac

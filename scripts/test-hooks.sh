@@ -794,7 +794,7 @@ tslog "fix labels: no create when nothing missing" "label create" 0
 TS_SCRIPT="$tf_" TS_ARGS=labels TS_LABELS=fail tsck "fix labels: list fails" ok 0 "action=labels result=failed detail=team-status: cannot list labels"
 tslog "fix labels: no create when the list fails" "label create" 0
 TS_SCRIPT="$tf_" TS_ARGS=bogus tsck "team-fix: unknown action is exit 1" ok 1
-TS_SCRIPT="$tf_" TS_ARGS=prune tsck "team-fix: not_implemented is exit 1" ok 1 "action=prune result=not_implemented"
+TS_SCRIPT="$tf_" TS_ARGS=ruleset tsck "team-fix: not_implemented is exit 1" ok 1 "action=ruleset result=not_implemented"
 mkdir -p "$psd/tfbad"; cp "$tf_" "$psd/tfbad/"; printf '#!/bin/sh\necho "warn\tffffff\tnoise" >&2\nprintf "ai\\tzz\\tx\\nbad\\t5319e7\\n"\n' >"$psd/tfbad/team-status.sh"
 TS_SCRIPT="$psd/tfbad/team-fix.sh" TS_ARGS=labels tsck "fix labels: bad rows skipped" ok 0 "label=ai result=failed detail=bad row" "label=bad result=failed detail=bad row"
 ! grep -qF "label=warn" "$out" && ! grep -qF "label create" "$psd/ts.log"; row team-status "fix labels: stderr is not a row; no create" 0 $? 0 "stderr row or create"
@@ -804,6 +804,113 @@ mkdir -p "$psd/tsnogh"; ln -sf "$(command -v python3)" "$psd/tsnogh/python3"; ln
 row team-status "team-status: gh missing is exit 1" 1 "$got" 0 "expected exit 1"
 (cd "$root" && PATH="$psd/tsnogh" /bin/bash "$tf_" labels >/dev/null 2>&1); got=$?
 row team-status "team-fix labels: gh missing is exit 1" 1 "$got" 0 "expected exit 1"
+
+# --- worktree-status / team-fix prune + remove-worktree: temp repos, stub gh chosen by WT_CASE ---
+# Stub contract (the scripts under test must make no other gh call; anything else exits 64):
+#   gh pr list --state merged --head <branch> --json headRefOid --limit 1
+#       -> [{"headRefOid":"<sha>"}] when "<branch> <sha>" is a line of $WT_PRS, else []; WT_CASE=fail exits 1.
+# A wrapper git first on PATH logs each call's argv ("$*") to $WT_GITLOG, then execs the real git.
+# Output asserted (worktree-status): header "worktrees=N prunable=N merged=N kept=N gh=ok|unavailable"; one row per extra
+#   worktree "<state>\t<branch|->\t<ignored_count>\t<ignored names csv|->\t<path>"; "prune_preview\t<line>" rows.
+# Output asserted (team-fix, exit 0 for every outcome): "action=prune result=done pruned=N";
+#   "action=remove-worktree result=removed path=<p> branch_kept=<b>" or "... result=refused reason=<state|not_a_worktree|unsafe_path|
+#   missing_count|current|ignored_changed>". remove-worktree takes <path> <ignored count shown to the user>.
+wts="$root/plugins/devkit/scripts/worktree-status.sh"; wtw="$psd/wtw"; mkdir -p "$psd/wtbin" "$wtw"
+printf '#!/bin/sh\n[ "$*" = "pr list --state merged --head $6 --json headRefOid --limit 1" ] || exit 64\n' >"$psd/wtbin/gh"
+cat >>"$psd/wtbin/gh" <<'STUB'
+[ "${WT_CASE:-}" = fail ] && { echo "gh: HTTP 500" >&2; exit 1; }
+s="$(awk -v b="$6" '$1 == b { print $2 }' "$WT_PRS")"
+if [ -n "$s" ]; then echo "[{\"headRefOid\":\"$s\"}]"; else echo '[]'; fi
+STUB
+printf '#!/bin/sh\necho "$*" >>"$WT_GITLOG"\nexec %s "$@"\n' "$(command -v git)" >"$psd/wtbin/git"; chmod +x "$psd/wtbin/gh" "$psd/wtbin/git"
+: >"$psd/wt.prs"
+wtadd() { # wtadd <branch> <path> [nopr]: worktree with one commit; a merged PR at the tip unless nopr
+  git -C "$r" worktree add -q -b "$1" "$2"; echo c >"$2/$1.txt"; git -C "$2" add -A; pgit "$2" commit -q -m c
+  [ "${3:-}" = nopr ] || echo "$1 $(git -C "$2" rev-parse HEAD)" >>"$psd/wt.prs"
+}
+wtrun() { # wtrun <name> <exp exit> <cwd> <WT_CASE> <script> [args]: output to $out; WT_KEEP=1 keeps the git log
+  [ -n "${WT_KEEP:-}" ] || : >"$psd/wt.gitlog"; local got
+  (cd "$3" && PATH="$psd/wtbin:$PATH" WT_CASE="$4" WT_PRS="$psd/wt.prs" WT_GITLOG="$psd/wt.gitlog" "$5" "${@:6}" >"$out" 2>/dev/null); got=$?
+  row worktree-status "$1" "$2" "$got" 0 "exit code differs (script missing or not implemented?)"
+}
+wtis() { grep -qE -- "$2" "$out"; row worktree-status "$1" 0 $? 0 "no match: $2"; }   # wtis <name> <ERE>
+wtno() { ! grep -qE -- "$2" "$out"; row worktree-status "$1" 0 $? 0 "unexpected: $2"; } # wtno <name> <ERE>
+wtlog() { grep -qE -- "$2" "$psd/wt.gitlog"; [ "$?" = "$3" ]; row worktree-status "$1" 0 $? 0 "git log check ($3) failed: $2"; } # wtlog <name> <ERE> <grep rc>
+mkrepo wt0; wtrun "no extra worktrees" 0 "$r" ok "$wts"; wtis "no extra: header all zero" "^worktrees=0 prunable=0 merged=0 kept=0 gh=ok$"
+mkrepo wt; wr="$r"; printf '.env.local\nnode_modules/\n' >>"$wr/.git/info/exclude"; git -C "$wr" branch -q b-newbase
+wtadd b-merged "$wtw/mrg"; mkdir -p "$wr/.claude/worktrees"; wtadd b-claude "$wr/.claude/worktrees/cw"
+wtadd b-ign "$wtw/ign"; echo s >"$wtw/ign/.env.local"; mkdir -p "$wtw/ign/node_modules/p"; echo s >"$wtw/ign/node_modules/p/i.js"
+git -C "$wr" worktree add -q -b b-new "$wtw/newb"
+wtadd b-stale "$wtw/stale"; echo m >"$wtw/stale/more.txt"; git -C "$wtw/stale" add -A; pgit "$wtw/stale" commit -q -m after
+wtadd b-untr "$wtw/untr"; echo u >"$wtw/untr/u.txt"; wtadd b-trk "$wtw/trk"; echo x >>"$wtw/trk/b-trk.txt"
+wtadd b-lock "$wtw/lock"; git -C "$wr" worktree lock "$wtw/lock"; wtadd b-det "$wtw/det"; git -C "$wtw/det" checkout -q --detach
+wtadd b-gone "$wtw/gone" nopr; rm -rf "$wtw/gone"
+wtrun "status: header counts" 0 "$wr" ok "$wts"; wtis "header: 3 merged 6 kept 1 prunable" "^worktrees=10 prunable=1 merged=3 kept=6 gh=ok$"
+wtis "merged: clean tree, PR at the tip" "^merged${T}b-merged${T}0${T}-${T}.*/mrg$"
+wtis "merged: under .claude/worktrees" "^merged${T}b-claude${T}0${T}-${T}.*/\.claude/worktrees/cw$"
+wtis "prunable: directory deleted" "^prunable${T}b-gone${T}"; wtis "prune_preview row for the deleted one" "^prune_preview${T}.*gone"
+wtis "no commits, no PR: kept" "^kept${T}b-new${T}"; wtis "tip differs from merged PR: kept" "^kept${T}b-stale${T}"
+wtis "untracked file: kept" "^kept${T}b-untr${T}"; wtis "tracked change: kept" "^kept${T}b-trk${T}"
+wtis "locked: kept" "^kept${T}b-lock${T}"; wtis "detached: kept, branch -" "^kept${T}-${T}"
+wtis "ignored: count 2" "^merged${T}b-ign${T}2${T}"; wtis "ignored: .env.local named" "^merged${T}b-ign${T}2${T}.*\.env\.local"; wtis "ignored: node_modules named" "^merged${T}b-ign${T}2${T}.*node_modules"
+wtrun "status from inside a merged worktree" 0 "$wtw/mrg" ok "$wts"; wtis "current worktree is kept" "^kept${T}b-merged${T}"
+wtrun "gh failing" 0 "$wr" fail "$wts"; wtis "gh fails: unavailable, only prunable stays" "^worktrees=10 prunable=1 merged=0 kept=9 gh=unavailable$"; wtno "gh fails: no merged row" "^merged${T}"
+mkdir -p "$psd/wtnogh"; for c in git python3 awk dirname; do ln -sf "$(command -v $c)" "$psd/wtnogh/$c"; done
+(cd "$wr" && PATH="$psd/wtnogh" /bin/bash "$wts" >"$out" 2>/dev/null); got=$?; row worktree-status "gh missing is exit 0" 0 "$got" 0 "exit code differs"
+wtis "gh missing: unavailable, none merged" "^worktrees=10 prunable=1 merged=0 kept=9 gh=unavailable$"
+# team-fix remove-worktree refusals, then removal, then prune (order matters: they mutate $wr)
+tfw() { WT_KEEP=1 wtrun "$1" 0 "${4:-$wr}" ok "$tf_" remove-worktree "$2" "$3"; }; : >"$psd/wt.gitlog" # tfw <name> <path> <count> [cwd]
+tfw "remove: kept worktree refused" "$wtw/trk" 0; wtis "remove: kept reason" "^action=remove-worktree result=refused reason=kept$"
+tfw "remove: main worktree refused" "$wr" 0; wtis "remove: main is not_a_worktree" "reason=not_a_worktree"
+tfw "remove: non-worktree path refused" "$psd" 0; wtis "remove: plain dir is not_a_worktree" "reason=not_a_worktree"
+tfw "remove: current worktree refused" "$wtw/mrg" 0 "$wtw/mrg"; wtis "remove: current is refused" "^action=remove-worktree result=refused reason=current$"
+tfw "remove: newline in path refused" "$wtw/a"$'\n'"b" 0; wtis "remove: newline reason" "reason=unsafe_path"
+tfw "remove: ignored count changed refused" "$wtw/ign" 1; wtis "remove: ignored_changed reason" "^action=remove-worktree result=refused reason=ignored_changed$"
+tfw "remove: missing count refused" "$wtw/mrg" ""; wtis "remove: missing_count reason" "^action=remove-worktree result=refused reason=missing_count$"
+tfw "remove: non-numeric count refused" "$wtw/mrg" x1; wtis "remove: non-numeric is missing_count" "^action=remove-worktree result=refused reason=missing_count$"
+tfw "remove: 2^64 count refused" "$wtw/mrg" 18446744073709551616; wtis "remove: overlong count is missing_count" "^action=remove-worktree result=refused reason=missing_count$"
+wtlog "refusals never ran worktree remove" "worktree remove" 1; [ -d "$wtw/trk" ] && [ -d "$wtw/mrg" ] && [ -d "$wtw/ign" ]; row worktree-status "refused worktrees still on disk" 0 $? 0 "directory removed"
+tfw "remove: merged worktree removed" "$wtw/mrg" 0; wtis "remove: removed line" "^action=remove-worktree result=removed path=.*/mrg branch_kept=b-merged$"
+[ ! -d "$wtw/mrg" ] && git -C "$wr" rev-parse -q --verify refs/heads/b-merged >/dev/null; row worktree-status "removed: dir gone, branch kept" 0 $? 0 "dir or branch wrong"
+wtlog "removal ran git worktree remove --" "worktree remove -- " 0; wtlog "removal never used --force" "(--force| -f( |$))" 1
+wtrun "prune removes the prunable entry" 0 "$wr" ok "$tf_" prune; wtis "prune: done, one pruned" "^action=prune result=done pruned=1$"
+git -C "$wr" worktree list --porcelain | grep -qF "/gone"; [ "$?" = 1 ]; row worktree-status "prune: gone entry dropped from git" 0 $? 0 "still listed"
+wtlog "prune never used --force" "--force" 1
+mkrepo wtpr; wtadd p-gone "$psd/wtpr-gone" nopr; rm -rf "$psd/wtpr-gone"
+(cd "$r" && PATH="$psd/wtnogh" /bin/bash "$tf_" prune >"$out" 2>/dev/null); got=$?; row worktree-status "prune: gh missing is exit 0" 0 "$got" 0 "exit code differs"
+wtis "prune: gh missing still prunes" "^action=prune result=done pruned=1$"
+# not a git repository: exit 1
+mkdir -p "$psd/wtnogit"; wtrun "status outside a git repo is exit 1" 1 "$psd/wtnogit" ok "$wts"
+# clean check ignores the user's untracked-files config and catches skip-worktree / assume-unchanged edits
+mkrepo wtc; git -C "$r" config status.showUntrackedFiles no; wtadd c-ok "$wtw/c-ok"; wtadd c-untr "$wtw/c-untr"; echo u >"$wtw/c-untr/u.txt"
+wtadd c-skip "$wtw/c-skip"; git -C "$wtw/c-skip" update-index --skip-worktree c-skip.txt; echo e >>"$wtw/c-skip/c-skip.txt"
+wtadd c-asm "$wtw/c-asm"; git -C "$wtw/c-asm" update-index --assume-unchanged c-asm.txt; echo e >>"$wtw/c-asm/c-asm.txt"
+wtrun "clean check: status" 0 "$r" ok "$wts"; wtis "clean check: 1 merged 3 kept" "^worktrees=4 prunable=0 merged=1 kept=3 gh=ok$"
+wtis "showUntrackedFiles=no + untracked file: kept" "^kept${T}c-untr${T}"; wtis "skip-worktree edit: kept" "^kept${T}c-skip${T}"
+wtis "assume-unchanged edit: kept" "^kept${T}c-asm${T}"; wtis "control: clean worktree merged" "^merged${T}c-ok${T}"
+WT_KEEP=1 wtrun "remove: hidden untracked refused" 0 "$r" ok "$tf_" remove-worktree "$wtw/c-untr" 0
+wtis "remove: hidden untracked is kept" "reason=kept$"; [ -f "$wtw/c-untr/u.txt" ]; row worktree-status "hidden untracked file still on disk" 0 $? 0 "file removed"
+# ignored nested git repository: removal would delete its history, so the row is kept
+mkrepo wtn; echo 'nested/' >>"$r/.git/info/exclude"; wtadd n-nest "$wtw/n-nest"; git init -q "$wtw/n-nest/nested"
+echo n >"$wtw/n-nest/nested/n.txt"; git -C "$wtw/n-nest/nested" add -A; pgit "$wtw/n-nest/nested" commit -q -m n
+wtrun "nested repo: status" 0 "$r" ok "$wts"; wtis "ignored nested repo: kept" "^kept${T}n-nest${T}1${T}nested/${T}"
+WT_KEEP=1 wtrun "remove: nested repo refused" 0 "$r" ok "$tf_" remove-worktree "$wtw/n-nest" 1
+wtis "remove: nested repo is kept" "reason=kept$"; [ -e "$wtw/n-nest/nested/.git" ]; row worktree-status "nested .git still on disk" 0 $? 0 "nested repo removed"
+# nested repo below an ignored dir (listing collapses to build/) and one with a name git quotes (né/)
+mkrepo wtn2; printf 'build/\nn\303\251/\n' >>"$r/.git/info/exclude"; wtadd n-deep "$wtw/n-deep"; wtadd n-utf "$wtw/n-utf"
+for d in "$wtw/n-deep/build/sub" "$wtw/n-utf/né"; do git init -q "$d"; echo n >"$d/n.txt"; git -C "$d" add -A; pgit "$d" commit -q -m n; done
+echo b >"$wtw/n-deep/build/out.txt"
+wtrun "deep/quoted nested repo: status" 0 "$r" ok "$wts"; wtis "nested repo below ignored dir: kept" "^kept${T}n-deep${T}1${T}build/${T}"
+wtis "non-ASCII nested repo: kept, name unescaped" "^kept${T}n-utf${T}1${T}né/${T}"
+WT_KEEP=1 wtrun "remove: deep nested repo refused" 0 "$r" ok "$tf_" remove-worktree "$wtw/n-deep" 1
+wtis "remove: deep nested repo is kept" "reason=kept$"; [ -e "$wtw/n-deep/build/sub/.git" ]; row worktree-status "deep nested .git still on disk" 0 $? 0 "nested repo removed"
+WT_KEEP=1 wtrun "remove: non-ASCII nested repo refused" 0 "$r" ok "$tf_" remove-worktree "$wtw/n-utf" 1
+wtis "remove: non-ASCII nested repo is kept" "reason=kept$"; [ -e "$wtw/n-utf/né/.git" ]; row worktree-status "non-ASCII nested .git still on disk" 0 $? 0 "nested repo removed"
+# symlinked temp dir: realpath comparison
+mkrepo wsym; ln -s "$r" "$psd/wsymrepo"; wtadd s-a "$psd/wsym-a"; wtadd s-b "$psd/wsym-b"; ln -s "$psd/wsym-a" "$psd/wsymlink-a"
+wtrun "status via symlinked repo path" 0 "$psd/wsymrepo" ok "$wts"; wtis "symlinked repo: merged" "^merged${T}s-a${T}"
+wtrun "remove via symlinked worktree path" 0 "$psd/wsymrepo" ok "$tf_" remove-worktree "$psd/wsymlink-a" 0; wtis "symlink path removed" "result=removed .*branch_kept=s-a$"
+wtrun "remove via realpath form" 0 "$psd/wsymrepo" ok "$tf_" remove-worktree "$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$psd/wsym-b")" 0; wtis "realpath form removed" "result=removed .*branch_kept=s-b$"
 
 expect "$notify" 0 "always exits 0" '{"message":"test"}'
 
