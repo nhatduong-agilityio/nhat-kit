@@ -380,6 +380,47 @@ row pr-size "bad base ref is exit 1" 1 "$got" 0 "expected exit 1"
 mkdir -p "$psd/norepo"
 (cd "$psd/norepo" && "$ps" main >/dev/null 2>&1); got=$?
 row pr-size "not a repo is exit 1" 1 "$got" 0 "expected exit 1"
+# --excluded-index: the same matcher over a NUL-separated path list (used by metrics.sh)
+pxi() { # pxi <name> <dir> <list file> <exp exit> <exp output, lines joined by "|">
+  local got
+  (cd "$2" && "$ps" --excluded-index "$3" >"$out" 2>/dev/null); got=$?
+  row pr-size "$1" "$4" "$got" 0 "exit code differs"
+  [ "$got" = 0 ] || return 0
+  [ "$(paste -sd'|' "$out")" = "$5" ]; row pr-size "$1: output" 0 $? 0 "got: $(paste -sd'|' "$out")"
+}
+mkrepo xi; xl="$psd/xi.list"
+printf '%s\0' a.lock src/x.js pkg/__snapshots__/s dist/m.js sub/yarn.lock >"$xl"
+pxi "excluded-index: default globs" "$r" "$xl" 0 "max_lines=300 max_files=10|0|2|3|4"
+printf '%s\0' keep.txt >"$xl"; printf 'x.min.js' >>"$xl"
+pxi "excluded-index: last path without a trailing NUL" "$r" "$xl" 0 "max_lines=300 max_files=10|1"
+: >"$xl"
+pxi "excluded-index: empty list prints the limits only" "$r" "$xl" 0 "max_lines=300 max_files=10"
+mkrepo xicfg $'- pr_max_lines: 1000\n- pr_size_exclude: gen/**, *.out'
+printf '%s\0' a.out gen/x.txt keep.txt sub/b.out >"$xl"
+pxi "excluded-index: docs/devkit.md limits and globs" "$r" "$xl" 0 "max_lines=1000 max_files=10|0|1|3"
+xie() { # xie <name> <expected stderr regex> <args...>: expects exit 1 and that message
+  local n="$1" m="$2" got; shift 2
+  (cd "$r" && "$ps" "$@" >/dev/null 2>"$out"); got=$?
+  row pr-size "$n" 1 "$got" 0 "expected exit 1"
+  grep -q "$m" "$out"; row pr-size "$n: message" 0 $? 0 "missing: $m"
+}
+xie "excluded-index: missing list file" "cannot read" --excluded-index "$psd/no-such.list"
+xie "excluded-index: a directory as the list" "cannot read" --excluded-index "$psd"
+xie "excluded-index without a file" "^usage:" --excluded-index
+xie "excluded-index with an empty file name" "^usage:" --excluded-index ""
+xie "excluded-index with two files" "^usage:" --excluded-index a b
+mkdir -p "$r/sub"; printf '%s\0' a.out keep.txt >"$r/sub/rel.list"
+pxi "excluded-index: relative list path from a subdirectory" "$r/sub" rel.list 0 "max_lines=1000 max_files=10|0"
+# Parity: on one repo, the normal run's excluded paths are exactly the ones --excluded-index flags.
+mkrepo xipar; mkdir -p "$r/pkg/__snapshots__" "$r/dist" "$r/lib"
+gen 3 >"$r/sub.lock"; gen 3 >"$r/pkg/__snapshots__/a.txt"; gen 3 >"$r/dist/m.js"; gen 3 >"$r/lib/app.min.css"
+gen 2 >"$r/lock.txt"; gen 2 >"$r/distx.js"; gen 2 >"$r/lib/app.css"; commit_all
+psck "parity repo: normal run" "$r" 0 "lines=6 files=3 max_lines=300 max_files=10 excluded=4"
+git -C "$r" diff --name-only -z main >"$xl"
+(cd "$r" && "$ps" --excluded-index "$xl" >"$out" 2>/dev/null)
+got="$(python3 -c 'import sys; p=open(sys.argv[1],"rb").read().split(b"\0"); ix=[int(l) for l in open(sys.argv[2]).read().split()[2:]]; print(",".join(sorted(p[i].decode() for i in ix)))' "$xl" "$out")"
+[ "$got" = "dist/m.js,lib/app.min.css,pkg/__snapshots__/a.txt,sub.lock" ]
+row pr-size "parity: --excluded-index flags the same 4 paths" 0 $? 0 "got: $got"
 
 # --- block-protected-push: template copy with {{PROTECTED_BRANCHES}} substituted, run in a temp repo ---
 # Placed after the pr-size repo helpers because it reuses mkrepo.
