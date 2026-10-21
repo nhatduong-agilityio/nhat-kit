@@ -173,8 +173,8 @@ Rejected:
   - `bash plugins/devkit/scripts/pr-size.sh main` reports `status=ok`.
 
 ### Phase 3 — `metrics.sh`: cycle time, send-backs, bugs, queue (PR A2)
-- [ ] Add fetches 2–4 and the cycle, send-back, bug and queue definitions from Approach, including the repo + number match for closing issues and the `capped` reason. File: `plugins/devkit/scripts/metrics.sh`.
-- [ ] Extend the stub and add cases. File: `scripts/test-hooks.sh`.
+- [x] Add fetches 2–4 and the cycle, send-back, bug and queue definitions from Approach, including the repo + number match for closing issues and the `capped` reason. File: `plugins/devkit/scripts/metrics.sh`.
+- [x] Extend the stub and add cases. File: `scripts/test-hooks.sh`.
   - Cycle: a claim, then a release, then a later claim, all before the merge → measured from the later claim. Two closing issues → the earliest of their latest claims. A claim after `mergedAt` is ignored → `no_claim`.
   - Missing reasons: one each of `no_issue`, `not_fetched` (one with no `ai` label, one in another repo with the same number as a fetched issue), `no_claim`, and `capped` (an issue with exactly 100 comments whose claims are all old) → right counts, and no cycle number for the `capped` one.
   - Send-backs: 2 `CHANGES_REQUESTED` plus 1 `APPROVED` → `review_sendbacks=2`. A release with an earlier claim → 1. A release with no earlier claim → 0. A release before `since` → 0. Both numbers print separately.

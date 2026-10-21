@@ -1106,24 +1106,41 @@ mx="$root/plugins/devkit/scripts/metrics.sh"
 mkdir -p "$psd/mxbin"
 cat >"$psd/mxbin/gh" <<'STUB'
 #!/usr/bin/env bash
-# Stub gh for metrics.sh. Allowed calls: "auth status" (fails when MX_CASE=noauth) and "pr list" (prints $MX_FIX, or
-# garbage when MX_CASE=badjson, or fails when MX_CASE=prfail). Every call is logged to $MX_LOG; anything else exits 1.
+# Stub gh for metrics.sh. Allowed calls: "auth status" (fails when MX_CASE=noauth), "pr list" (prints $MX_FIX, or
+# garbage when MX_CASE=badjson, or fails when MX_CASE=prfail), "repo view" (Me/Repo), and "issue list" routed by
+# --label/--state: ai+all -> mxi.json, bug+open -> mxb.json, ai+open -> mxq.json (each "[]" when absent).
+# MX_CASE=fail:<repo|issues|bugs|queue> exits 1 and bad:<...> prints garbage for that call. Every call is logged to $MX_LOG.
 echo "$*" >>"${MX_LOG:-/dev/null}"
+key=""; lb=""; st=""; prev=""
+for a in "$@"; do [ "$prev" = --label ] && lb=$a; [ "$prev" = --state ] && st=$a; prev=$a; done
+case "$1 $2" in
+  "issue list") case "$lb $st" in "ai all") key=issues ;; "bug open") key=bugs ;; "ai open") key=queue ;; *) exit 1 ;; esac ;;
+  "repo view") key=repo ;;
+esac
+case "${MX_CASE:-}" in "fail:$key") exit 1 ;; "bad:$key") echo 'not json'; exit 0 ;; esac
 case "$1 $2" in
   "auth status") [ "${MX_CASE:-}" != noauth ] || exit 1 ;;
   "pr list") case "${MX_CASE:-}" in badjson) echo 'not json' ;; prfail) exit 1 ;; *) cat "$MX_FIX" ;; esac ;;
+  "repo view") echo '{"nameWithOwner":"Me/Repo"}' ;;
+  "issue list") f="$(dirname "$MX_FIX")/mx${key:0:1}.json"; if [ -f "$f" ]; then cat "$f"; else echo '[]'; fi ;;
   *) exit 1 ;;
 esac
 STUB
 chmod +x "$psd/mxbin/gh"
-mxfix() { # mxfix <python expr using pr(n, merged, files, cf=None, revs=0, title="t")>: write the fixture
+mxfix() { # mxfix <python expr> [file]: write a fixture (default PRs); helpers pr(n, m, files, cf, revs, title, cl=[(n[, "o/r"])]),
+  # iss(n, comments, labels), claim(t), rel(t)
   python3 -c '
 import json, sys
-def pr(n, m="2026-10-12T10:00:00Z", files=(), cf=None, revs=0, title="t"):
+def pr(n, m="2026-10-12T10:00:00Z", files=(), cf=None, revs=0, title="t", cl=()):
     fs = [{"path": p, "additions": a, "deletions": d} for p, a, d in files]
     return {"number": n, "title": title, "mergedAt": m, "changedFiles": len(fs) if cf is None else cf, "files": fs,
-            "reviews": [{"state": "CHANGES_REQUESTED" if i < 2 else "APPROVED", "body": "secret"} for i in range(revs)]}
-json.dump(eval(sys.argv[1]), open(sys.argv[2], "w"))' "$1" "$psd/mx.json"
+            "reviews": [{"state": "CHANGES_REQUESTED" if i < 2 else "APPROVED", "body": "secret"} for i in range(revs)],
+            "closingIssuesReferences": [{"number": c[0], "repository": {"name": (c + ("Me/Repo",))[1].split("/")[1],
+                "owner": {"login": (c + ("Me/Repo",))[1].split("/")[0]}}} for c in cl]}
+def iss(n, comments=(), labels=()): return {"number": n, "comments": list(comments), "labels": [{"name": l} for l in labels]}
+def claim(t): return {"body": "\U0001F512 devkit claim \u00b7 host: h", "createdAt": t}
+def rel(t): return {"body": "\U0001F513 devkit release \u00b7 host: h", "createdAt": t}
+json.dump(eval(sys.argv[1]), open(sys.argv[2], "w"))' "$1" "${2:-$psd/mx.json}"
 }
 mxck() { # mxck <name> <MX_CASE> <exp exit> <expected substring>... (dir MX_DIR, script MX_SCRIPT, args MX_ARGS; stderr in $out2)
   local name="$1" cs="$2" ex="$3" got s; shift 3; : >"$psd/mx.log"
@@ -1177,6 +1194,46 @@ MX_ARGS="" mxck "default since is 14 days ago" ok 0 "since=$(python3 -c 'import 
 mxck "gh not logged in" noauth 1 "metrics: gh not logged in"
 mxck "gh pr list fails" prfail 1 "metrics:"
 mxck "invalid JSON from pr list" badjson 1 "unexpected gh output"
+# Phase 3: cycle time, send-backs, bugs, queue (issue fixtures: mxi.json = ai+all, mxb.json = bugs, mxq.json = queue)
+mxi() { mxfix "$1" "$psd/mxi.json"; }
+mkrepo mxc; mxi "[iss(7,[claim('2026-10-12T01:00:00Z'),rel('2026-10-12T02:00:00Z'),claim('2026-10-12T06:00:00Z'),claim('2026-10-12T12:00:00Z')]),
+  iss(8,[claim('2026-10-11T00:00:00Z')]),iss(9,[claim('2026-10-13T00:00:00Z')]),iss(11,[claim('2026-10-01T00:00:00Z')]*100),iss(5,[rel('2026-10-11T00:00:00Z')])]"
+mxfix "[pr(1,cl=[(7,)]),pr(2,cl=[(7,),(8,)]),pr(3,cl=[(9,)]),pr(4),pr(5,cl=[(99,)]),pr(6,cl=[(7,'Other/Repo')]),pr(7,cl=[(11,)]),pr(8,cl=[(7,'me/REPO')])]"
+mxck "cycle: later claim restarts, earliest of several, reasons" ok 0 "cycle_n=3 cycle_missing=5 no_issue=1 not_fetched=2 no_claim=1 capped=1 cycle_median_hours=4.0 cycle_p90_hours=34.0" \
+  "#1${T}0${T}0${T}4.0${T}" "#2${T}0${T}0${T}34.0${T}" "#8${T}0${T}0${T}4.0${T}" "#3${T}0${T}0${T}-${T}" "#7${T}0${T}0${T}-${T}" "capped_items=1"
+mxfix "[pr(1,revs=3),pr(2)]"; mxi "[iss(3,[claim('2026-10-11T00:00:00Z'),rel('2026-10-11T01:00:00Z')]),iss(4,[rel('2026-10-11T00:00:00Z')]),
+  iss(5,[claim('2026-10-01T00:00:00Z'),rel('2026-10-02T00:00:00Z')]),iss(6,[claim('2026-10-11T00:00:00Z'),{'body':'x | y\nleak','createdAt':'2026-10-11T00:00:00Z'}])]"
+mxck "send-backs: reviews and releases are separate; release rules" ok 0 "review_sendbacks=2 queue_releases=1 issues_truncated=0" "#1${T}0${T}0${T}-${T}2" "#2${T}0${T}0${T}-${T}0"
+! grep -q leak "$out" "$out2"; row metrics "comment bodies are never printed" 0 $? 0 "body leaked"
+grep -qF -- "updated:>=2026-10-09" "$psd/mx.log"; row metrics "issue search uses since minus one day" 0 $? 0 "log: $(cat "$psd/mx.log")"
+mxi "[iss(n) for n in range(1,1001)]"; mxck "1000 issues: truncated flag" ok 0 "issues_truncated=1"
+mxfix "[pr(1,cl=[(1,)])]"; mxi "[iss(1,[claim('2026-10-12T11:00:00Z')])]"; mxck "claim after merge is ignored" ok 0 "no_claim=1 capped=0"
+mxi "[iss(1,[claim('2026-10-12T10:00:00Z')])]"; mxck "claim at the exact merge second is not before it" ok 0 "cycle_n=0" "no_claim=1"
+mxi "[iss(7,[claim('2026-10-12T08:00:00Z')]),iss(11,[claim('2026-10-01T00:00:00Z')]*100)]"
+mxfix "[pr(1,cl=[(11,),(7,)])]"; mxck "a capped issue among several makes the PR capped" ok 0 "cycle_n=0" "capped=1"
+mxfix "[pr(1,cl=[(7,),(99,)])]"; mxck "one closing issue missing from the search: not_fetched" ok 0 "cycle_n=0" "not_fetched=1"
+mxfix "[pr(1,cl=[(7,),(7,'other/repo')])]"; mxck "other-repo issue beside a fetched one is ignored" ok 0 "cycle_n=1 cycle_missing=0" "cycle_median_hours=2.0"
+mxfix "[pr(1)]"; mxi "[iss(1,[rel('2026-10-11T00:00:00Z'),claim('2026-10-11T01:00:00Z')]),iss(2,[claim('2026-10-11T03:00:00Z'),rel('2026-10-11T03:00:00Z')]),iss(3,[rel('2026-10-11T04:00:00Z'),claim('2026-10-11T04:00:00Z')])]"
+mxck "release counts only after a claim in comment order" ok 0 "queue_releases=1"
+for bad in "dict(pr(1),closingIssuesReferences=[{'number':'7'}])" "dict(pr(1),closingIssuesReferences='')" "dict(pr(1),reviews=[{'state':5}])" "dict(pr(1),reviews=[3])" "dict(pr(1),reviews={})"; do
+  mxfix "[$bad]"; mxck "wrongly typed gh field fails closed: $bad" ok 1 "metrics: unexpected gh output"
+  ! grep -q Traceback "$out2"; row metrics "no traceback: $bad" 0 $? 0 "traceback printed"
+done
+mxfix "[pr(1,cl=[(1,)])]"; mxi "[iss(1,[claim('2026-10-12T11:00:00Z'),{'body':'x','createdAt':5}])]"; mxck "wrongly typed comment fails closed" ok 1 "unexpected gh output"
+mxfix "[]"; rm -f "$psd/mxi.json"
+mxfix "[iss(1,labels=['bug','severity:high']),iss(2,labels=['bug','severity:high','severity:low']),iss(3,labels=['bug']),iss(4,labels=['severity:critical','bug']),iss(5,labels=['bug','severity:low','severity:medium'])]" "$psd/mxb.json"
+mxck "bugs by highest severity, whatever the label order" ok 0 "bugs_open=5 critical=1 high=2 medium=1 low=0 none=1 bugs_truncated=0"
+mxfix "[iss(1,labels=[5])]" "$psd/mxb.json"; mxck "wrongly typed label fails closed" ok 1 "unexpected gh output"
+mxfix "[iss(n) for n in range(1,1001)]" "$psd/mxb.json"; mxck "1000 bugs: truncated flag" ok 0 "bugs_truncated=1"
+rm -f "$psd/mxb.json"
+mxfix "[iss(1,labels=['ai']),iss(2,labels=['ai','in-progress']),iss(3,labels=['ai'])]" "$psd/mxq.json"
+mxck "queue depth and in-flight" ok 0 "queue_depth=2 in_flight=1 queue_truncated=0"
+mxfix "[iss(n) for n in range(1,1001)]" "$psd/mxq.json"; mxck "1000 queue issues: truncated flag" ok 0 "queue_truncated=1"
+rm -f "$psd/mxq.json"
+for k in repo issues bugs queue; do
+  mxck "gh call for $k fails" "fail:$k" 1 "metrics:"
+  mxck "invalid JSON for $k" "bad:$k" 1 "metrics:"
+done
 # pr-size.sh is found beside metrics.sh (no slash in $0), and a failing one never counts every path
 mkrepo mxrun; mkdir "$r/s"; cp "$mx" "$ps" "$r/s/"
 mxfix "[pr(1,files=[('a.js',3,0)])]"
