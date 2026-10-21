@@ -1,6 +1,6 @@
 # claude-kit — an engineering kit for Claude Code, for solo engineers and teams
 
-The `nhat-kit` marketplace contains the **devkit 2.4.0** plugin: 19 commands, 10 subagents, 3 hooks (`protect-files`, `block-force-push` — also blocks `gh pr merge --admin` and self-approval, `notify`), and 4-layer project templates. It works for one engineer and for a team pulling from one shared GitHub issue queue (claims, plan ↔ tracker sync, PR report artifacts); squad orchestration is the next stage (`upstream/proposals/20261018.md`). It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
+The `nhat-kit` marketplace contains the **devkit 2.4.0** plugin: 20 commands, 10 subagents, 3 hooks (`protect-files`, `block-force-push` — also blocks `gh pr merge --admin` and self-approval, `notify`), and 4-layer project templates. It works for one engineer and for a team pulling from one shared GitHub issue queue (claims, plan ↔ tracker sync, PR report artifacts); squad orchestration is the next stage (`upstream/proposals/20261018.md`). It is written entirely from scratch, using ClaudeKit Engineer Kit only as an idea source through its public docs (see `UPSTREAM.md`). It costs about 1,300 always-on tokens per session. Every artifact the kit produces is in English.
 
 ## Commands
 
@@ -26,9 +26,10 @@ The `nhat-kit` marketplace contains the **devkit 2.4.0** plugin: 19 commands, 10
 | `/devkit:retro` | After a task where you had to correct Claude several times | — |
 | `/devkit:check` | Health-check a project's 4 layers | — |
 | `/devkit:check-fix` | After `check` reports team setup gaps: safe fixes (missing queue labels, `git worktree prune`) after one yes; a separate yes per merged-worktree removal and for the default-branch ruleset; login gaps shown as manual steps | — |
+| `/devkit:report [since]` | Team metrics from GitHub data only (default: last 14 days) → `reports/<YYYYMMDD>.md`: merged PR sizes (the PR size gate's counting), cycle time from the devkit claim to merge, changes-requested reviews and queue releases (two numbers), open bugs by severity, queue depth; missing data is counted, never estimated; offers a shareable page | — |
 | `/devkit:security-scan` | Whole-project scan: leaked secrets, vulnerable dependencies (installed audit tools only), sensitive tracked files, risky code sinks → redacted report; `/security-review` covers the branch diff | security-scanner |
 
-Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`, `review`, `scout`, `brainstorm`. These run only when you type them, because they have side effects or run a long interview: `bootstrap`, `task`, `cook`, `git`, `ship`, `deploy`, `retro`, `check`, `check-fix`, `grill`, `issue`, `security-scan`.
+Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`, `review`, `scout`, `brainstorm`. These run only when you type them, because they have side effects or run a long interview: `bootstrap`, `task`, `cook`, `git`, `ship`, `deploy`, `retro`, `check`, `check-fix`, `grill`, `issue`, `report`, `security-scan`.
 
 ## Model tiers
 
@@ -59,7 +60,7 @@ BA task:         /devkit:task PROJ-381            (end to end, up to the PR)
 Issue queue:     /devkit:issue bug → /devkit:task next → PR with Closes #N
 Own feature:     /devkit:brainstorm → /devkit:grill → /devkit:plan → /devkit:cook → /devkit:ship
 Something broke: /devkit:fix  (hard ones: /devkit:debug first)
-Periodically:    /devkit:retro, /devkit:check
+Periodically:    /devkit:retro, /devkit:check, /devkit:report
 ```
 
 Plans live in `plans/<date>-<slug>/` (plan.md, research/, report.md); task specs in `docs/tasks/<ID>-<slug>/SPEC.md`. Plans, pushes, and PRs always wait for your approval, and only an explicit yes counts; an approved plan records `Approved: YYYY-MM-DD by <name>`. Shared conventions: `plugins/devkit/references/conventions.md`.

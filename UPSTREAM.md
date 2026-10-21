@@ -140,7 +140,7 @@ A teammate's squad-orchestration plugin, used as an idea source ([repo](https://
 | Stakeholder answers verbatim + English translation | `grill` / `task` / `requirements-analyst` | ✅ | P-34 (shared); conventions "Language" verbatim rule, applied in `grill` step 6, `task` step 3, `requirements-analyst`, and the SPEC template column `BA's answer (verbatim + EN)`; contact details become `[redacted]`; no eval (needs a second user turn) |
 | Block `gh pr merge --admin` and self-approval | `block-force-push` hook | ✅ | P-35 (shared) |
 | Open-PR back-pressure | `/devkit:task next` + `scripts/queue-status.sh` | ✅ | P-36 (stage 1); counts all open non-draft PRs |
-| Team metrics from GitHub data only | — | ⏳ | P-37 (stage 1) |
+| Team metrics from GitHub data only | `/devkit:report` | ✅ | P-37 (stage 1); `scripts/metrics.sh` reads only `gh`; sizes go through `pr-size.sh --excluded-index` so they match the PR size gate; cycle time runs from the latest devkit claim before merge; changes-requested reviews and queue releases stay two separate numbers; missing data is counted by reason, never estimated; writes `reports/<YYYYMMDD>.md` and offers a page only after a yes; no eval: the output depends on live GitHub data |
 | Production approval via GitHub Environment reviewers | `/devkit:deploy` | ⏳ | P-38 (stage 1) |
 | Machine-readable agent results | conventions Result block | ⏳ | P-39 (stage 2) |
 | Per-task worktree with isolated port and test DB | — | ⏳ | P-40 (stage 2) |

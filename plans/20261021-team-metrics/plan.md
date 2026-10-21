@@ -1,5 +1,5 @@
 # /devkit:report — team metrics from GitHub data only
-Status: in-progress · Source: P-37 in `upstream/proposals/20261018.md:41` (v2.6.0, last item) · Mode: standard
+Status: done · Source: P-37 in `upstream/proposals/20261018.md:41` (v2.6.0, last item) · Mode: standard
 Approved: 2026-10-21 by nhatduong-agilityio
 
 ## Goal
@@ -188,8 +188,8 @@ Rejected:
   - `bash plugins/devkit/scripts/pr-size.sh main` reports `status=ok`.
 
 ### Phase 4 — `/devkit:report` skill and docs (PR B)
-- [ ] Write the skill described in Approach, short and imperative. File: `plugins/devkit/skills/report/SKILL.md`.
-- [ ] Repo rule for a new skill:
+- [x] Write the skill described in Approach, short and imperative. File: `plugins/devkit/skills/report/SKILL.md`.
+- [x] Repo rule for a new skill:
   - Change "19 commands" to 20 at `:3`. Add a `/devkit:report [since]` row after `:28`. Add `report` to the `:31` list. Add `/devkit:report` to `:62`. File: `README.md`.
   - Mark row `:143` ✅, in the shape of `:138`: `/devkit:report` plus `scripts/metrics.sh`, sizes through `pr-size.sh --excluded-index`, the two separate send-back numbers, and missing data counted. File: `UPSTREAM.md`.
   - Add a P-37 entry under `[Unreleased]` / `### Added`. File: `CHANGELOG.md`.
