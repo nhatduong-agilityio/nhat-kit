@@ -794,7 +794,7 @@ tslog "fix labels: no create when nothing missing" "label create" 0
 TS_SCRIPT="$tf_" TS_ARGS=labels TS_LABELS=fail tsck "fix labels: list fails" ok 0 "action=labels result=failed detail=team-status: cannot list labels"
 tslog "fix labels: no create when the list fails" "label create" 0
 TS_SCRIPT="$tf_" TS_ARGS=bogus tsck "team-fix: unknown action is exit 1" ok 1
-TS_SCRIPT="$tf_" TS_ARGS=ruleset tsck "team-fix: not_implemented is exit 1" ok 1 "action=ruleset result=not_implemented"
+TS_SCRIPT="$tf_" TS_ARGS=bogus2 tsck "team-fix: second unknown action is exit 1" ok 1
 mkdir -p "$psd/tfbad"; cp "$tf_" "$psd/tfbad/"; printf '#!/bin/sh\necho "warn\tffffff\tnoise" >&2\nprintf "ai\\tzz\\tx\\nbad\\t5319e7\\n"\n' >"$psd/tfbad/team-status.sh"
 TS_SCRIPT="$psd/tfbad/team-fix.sh" TS_ARGS=labels tsck "fix labels: bad rows skipped" ok 0 "label=ai result=failed detail=bad row" "label=bad result=failed detail=bad row"
 ! grep -qF "label=warn" "$out" && ! grep -qF "label create" "$psd/ts.log"; row team-status "fix labels: stderr is not a row; no create" 0 $? 0 "stderr row or create"
@@ -911,6 +911,154 @@ mkrepo wsym; ln -s "$r" "$psd/wsymrepo"; wtadd s-a "$psd/wsym-a"; wtadd s-b "$ps
 wtrun "status via symlinked repo path" 0 "$psd/wsymrepo" ok "$wts"; wtis "symlinked repo: merged" "^merged${T}s-a${T}"
 wtrun "remove via symlinked worktree path" 0 "$psd/wsymrepo" ok "$tf_" remove-worktree "$psd/wsymlink-a" 0; wtis "symlink path removed" "result=removed .*branch_kept=s-a$"
 wtrun "remove via realpath form" 0 "$psd/wsymrepo" ok "$tf_" remove-worktree "$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$psd/wsym-b")" 0; wtis "realpath form removed" "result=removed .*branch_kept=s-b$"
+
+# --- team-fix ruleset: stub gh on PATH, scenario chosen by TF_CASE, data by TF_LIST/TF_LIST2/TF_GET/TF_GET2/TF_CAN ---
+# Stub contract (the script under test may make no other gh call; anything else exits 64):
+#   gh repo view --json ...  -> {"nameWithOwner","visibility","viewerPermission":"ADMIN"} (TF_CASE=write gives WRITE); auth status / label list
+#       answer too, in case the script reuses team-status.sh. gh api is never used for the permission.
+#   TF_CASE=viewfail: repo view fails (stderr "gh: repo view failed")
+#   gh api 'repos/{owner}/{repo}/rulesets?includes_parents=true&targets=branch&per_page=100'  (query in the PATH, never via -f) -> $TF_LIST,
+#       the second and later calls -> $TF_LIST2 when set
+#   gh api repos/{owner}/{repo}/rulesets/<id>  -> $TF_GET; after a successful write -> $TF_GET2, else the last body sent plus id and
+#       current_user_can_bypass=$TF_CAN (default never); TF_CASE=rbfail: that GET prints {"message":"Not Found"}, stderr HTTP 404, exit 1
+#   gh api -X POST repos/{owner}/{repo}/rulesets --input <file>  -> {"id":77} ({} with TF_CASE=noid);  gh api -X PUT .../rulesets/<id> --input <file>
+#   TF_CASE=w422 / w422b / w422f / w403: every write fails with stderr "gh: Validation Failed (HTTP 422)" (+ a second line) and, like gh api for
+#   non-2xx, the error body on stdout: generic (w422), naming bypass actors (w422b), or field bypass_actors code invalid, no message (w422f) / stderr "gh: Must have admin rights (HTTP 403)" (+ a second line), no body
+# Every call is logged as "$*" to $TF_LOG; each --input file is copied to $TF_LOG.<n>.json (n = 1, 2, ...). A call with --input, -f, -F,
+# --field or --raw-field and no explicit -X POST|PUT is an implicit gh write: the stub exits 99 and creates $TF_LOG.illegal.
+mkdir -p "$psd/tfbin"
+cat >"$psd/tfbin/gh" <<'STUB'
+#!/bin/sh
+echo "$*" >>"$TF_LOG"
+c="${TF_CASE:-ok}"; m=GET; w=0; prev=""; path=""; inp=""
+for a in "$@"; do
+  case "$prev" in -X) m="$a" ;; --input) inp="$a" ;; esac
+  case "$a" in --input|-f|-F|--field|--raw-field) w=1 ;; repos/*) path="$a" ;; esac
+  prev="$a"
+done
+case "$1 $2" in
+  "auth status") echo '{"hosts":{"github.com":[{"state":"success","active":true,"host":"github.com","login":"octo","scopes":"repo"}]}}'; exit 0 ;;
+  "label list") echo '[]'; exit 0 ;;
+  "repo view") p=ADMIN; [ "$c" = write ] && p=WRITE; [ "$c" = viewfail ] && { echo "gh: repo view failed" >&2; exit 1; }
+    printf '{"nameWithOwner":"octo/demo","visibility":"PRIVATE","viewerPermission":"%s"}\n' "$p"; exit 0 ;;
+esac
+[ "$1" = api ] || exit 64
+if [ "$w" = 1 ]; then case "$m" in POST|PUT) ;; *) : >"$TF_LOG.illegal"; echo "stub: implicit write" >&2; exit 99 ;; esac; fi
+case "$m $path" in
+  "GET repos/"*"/rulesets?includes_parents=true&targets=branch&per_page=100")
+    echo x >>"$TF_LOG.l"
+    if [ "$(wc -l <"$TF_LOG.l")" -gt 1 ] && [ -n "${TF_LIST2:-}" ]; then printf '%s\n' "$TF_LIST2"; else printf '%s\n' "${TF_LIST:-[]}"; fi ;;
+  "GET repos/"*"/rulesets/"[0-9]*)
+    if [ ! -e "$TF_LOG.w" ]; then if [ -n "${TF_GET:-}" ]; then printf '%s\n' "$TF_GET"; else echo '{}'; fi
+    elif [ "$c" = rbfail ]; then echo '{"message":"Not Found"}'; echo "gh: Not Found (HTTP 404)" >&2; exit 1
+    elif [ -n "${TF_GET2:-}" ]; then printf '%s\n' "$TF_GET2"
+    else python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); d.update(id=int(sys.argv[3]),current_user_can_bypass=sys.argv[2],source_type="Repository"); print(json.dumps(d))' "$TF_LOG.last" "${TF_CAN:-never}" "${path##*/}"; fi ;;
+  "POST repos/"*"/rulesets"|"PUT repos/"*"/rulesets/"[0-9]*)
+    [ -f "$inp" ] || exit 64
+    cp "$inp" "$TF_LOG.$(( $(ls "$TF_LOG".*.json 2>/dev/null | wc -l) + 1 )).json"; cp "$inp" "$TF_LOG.last"
+    case "$c" in
+      w422*) echo "gh: Validation Failed (HTTP 422)" >&2; echo "second line" >&2; e='{"resource":"Ruleset","code":"invalid","field":"rules"}'
+        [ "$c" = w422b ] && e='"Invalid Bypass Actors: actor_id 5"'; [ "$c" = w422f ] && e='{"field":"bypass_actors","code":"invalid"}'; printf '{"message":"Validation Failed","errors":[%s]}\n' "$e"; exit 1 ;;
+      w403) echo "gh: Must have admin rights (HTTP 403)" >&2; echo "second line" >&2; exit 1 ;;
+    esac
+    : >"$TF_LOG.w"; if [ "$c" = noid ]; then echo '{}'; elif [ "$m" = POST ]; then echo '{"id":77}'; else cat "$inp"; fi ;;
+  *) exit 64 ;;
+esac
+STUB
+chmod +x "$psd/tfbin/gh"
+OWN='devkit: protect default branch'
+li() { printf '{"id":%s,"name":"%s","source_type":"%s","enforcement":"active"}' "$1" "$2" "${3:-Repository}"; } # li <id> <name> [source_type]
+det() { printf '{"id":11,"name":"%s","target":"branch","source_type":"Repository","source":"octo/demo","node_id":"N","_links":{},"created_at":"t","updated_at":"t","current_user_can_bypass":"never","enforcement":"%s","bypass_actors":%s,"conditions":{"ref_name":{"include":["~DEFAULT_BRANCH"],"exclude":[]}},"rules":[%s]}' "$OWN" "$1" "${3:-[]}" "$2"; } # det <enforcement> <rules> [actors]
+NFF='{"type":"non_fast_forward"}'; SC='{"type":"required_status_checks","parameters":{"required_status_checks":[{"context":"ci"}],"strict_required_status_checks_policy":true}}'
+PR2='{"type":"pull_request","parameters":{"required_approving_review_count":2,"dismiss_stale_reviews_on_push":true,"require_code_owner_review":true,"require_last_push_approval":false,"required_review_thread_resolution":true}}'
+ADM='{"actor_id":5,"actor_type":"RepositoryRole","bypass_mode":"always"}'; OLD='{"actor_id":1,"actor_type":"Team","bypass_mode":"pull_request"}'
+BODY='(pr:=next(r for r in d["rules"] if r["type"]=="pull_request")) and sorted(pr["parameters"])==sorted(["dismiss_stale_reviews_on_push","require_code_owner_review","require_last_push_approval","required_approving_review_count","required_review_thread_resolution"]) and any(r["type"]=="non_fast_forward" for r in d["rules"]) and d["target"]=="branch" and d["enforcement"]=="active" and d["conditions"]["ref_name"]["include"]==["~DEFAULT_BRANCH"]'
+SIX='sorted(d)==sorted(["name","target","enforcement","bypass_actors","conditions","rules"])'; C0='pr["parameters"]["required_approving_review_count"]==0'
+tfck() { # tfck <name> <TF_CASE> <exp exit> <substring>... (TF_ARGS = action args; TF_RO=1 also asserts no write flag in the log)
+  local name="$1" cs="$2" ex="$3" got s; shift 3
+  rm -f "$psd"/tf.log*; : >"$psd/tf.log"
+  (cd "$root" && env -u GH_HOST PATH="$psd/tfbin:$PATH" TF_CASE="$cs" TF_LOG="$psd/tf.log" "$tf_" ruleset ${TF_ARGS:-} >"$out" 2>/dev/null); got=$?
+  row team-fix "$name" "$ex" "$got" 0 "exit code differs"
+  [ ! -e "$psd/tf.log.illegal" ]; row team-fix "$name: no implicit gh write" 0 $? 0 "gh api write without -X"
+  for s in "$@"; do grep -qF -- "$s" "$out"; row team-fix "$name: $s" 0 $? 0 "missing: $s"; done
+  [ -z "${TF_RO:-}" ] || { ! grep -qE -e '(^| )-X (POST|PUT)( |$)' -e '(^| )(--input|-f|-F|--field|--raw-field)( |=|$)' "$psd/tf.log"; row team-fix "$name: read-only log" 0 $? 0 "write flag in log"; }
+}
+tfl() { local n; n="$(grep -cE -- "$2" "$psd/tf.log")"; [ -s "$psd/tf.log" ] && [ "$n" = "$3" ]; row team-fix "$1" 0 $? 0 "log count $n, expected $3 for: $2"; } # tfl <name> <ERE> <count>
+tfj() { python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if eval(sys.argv[2]) else 1)' "$psd/tf.log.$2.json" "$3" 2>/dev/null; row team-fix "$1" 0 $? 0 "body check failed: ${3:0:60}"; } # tfj <name> <n> <python expr over d>
+POST=' -X POST '; PUT=' -X PUT '
+# permission, create, foreign and organization rulesets, ambiguous
+tfck "ruleset: WRITE permission is refused" write 0 "action=ruleset result=refused reason=not_admin"
+tfl "ruleset refused: no gh api call" '^api ' 0
+TF_ARGS=--dry-run tfck "ruleset dry-run: WRITE is refused" write 0 "action=ruleset result=refused reason=not_admin"
+tfl "ruleset dry-run refused: no gh api call" '^api ' 0
+tfck "ruleset: no rulesets creates" ok 0 "action=ruleset result=created rules_added=pull_request,non_fast_forward bypass=none others=-"
+tfl "create: one POST, no PUT" "$POST.*rulesets --input " 1; tfl "create: no PUT" "$PUT" 0
+tfl "create: list query is in the path, no field flags" 'api repos/.*/rulesets\?includes_parents=true&targets=branch&per_page=100$' 1
+tfj "create: body has both rules, 5 params, count 0" 1 "$BODY and $C0 and d['name']=='$OWN' and d['bypass_actors']==[]"
+TF_LIST="[$(li 25369692 kit)]" tfck "ruleset: only foreign kit is not edited" ok 0 "result=created" "others=kit"
+tfl "foreign kit: POST, no PUT" "$POST" 1; tfl "foreign kit: no write to its id" "25369692 --input" 0
+TF_LIST="[$(li 900 "$OWN" Organization)]" tfck "ruleset: organization ruleset with our name" ok 0 "result=created" "others=devkit:%20protect%20default%20branch"
+tfl "org ruleset ignored: POST, no PUT" "$POST" 1; tfl "org ruleset ignored: no PUT" "$PUT" 0
+TF_RO=1 TF_LIST="[$(li 11 "$OWN"),$(li 12 "$OWN")]" tfck "ruleset: two own rulesets are ambiguous" ok 0 "action=ruleset result=ambiguous rules_added=- bypass=none others=-"
+# update: PUT keeps existing parameters and bypass actors, adds only what is missing
+TF_LIST="[$(li 11 "$OWN")]" TF_GET="$(det active "$SC,$NFF" "[$OLD]")" tfck "ruleset: own NFF-only is updated" ok 0 "action=ruleset result=updated rules_added=pull_request bypass=none others=-"
+tfl "update: one PUT to the id, no POST" "$PUT.*rulesets/11 --input " 1; tfl "update: no POST" "$POST" 0
+tfj "update: exactly the six editable keys" 1 "$SIX"; tfj "update: pull_request added with 5 params, count 0" 1 "$BODY and $C0"
+tfj "update: status check parameters kept" 1 'any(r["type"]=="required_status_checks" and r["parameters"]["required_status_checks"][0]["context"]=="ci" and r["parameters"]["strict_required_status_checks_policy"] is True for r in d["rules"])'
+tfj "update: existing bypass actor kept" 1 "d['bypass_actors']==[$OLD]"
+TF_LIST="[$(li 11 "$OWN")]" TF_GET="$(det active "$PR2")" tfck "ruleset: own PR-only gets non_fast_forward" ok 0 "result=updated rules_added=non_fast_forward"
+tfj "update: custom pull_request parameters kept" 1 "$SIX and $BODY and pr['parameters']['required_approving_review_count']==2 and pr['parameters']['require_code_owner_review'] is True"
+TF_RO=1 TF_LIST="[$(li 11 "$OWN")]" TF_GET="$(det active "$NFF,$PR2")" tfck "ruleset: own with both rules is unchanged" ok 0 "result=unchanged rules_added=- bypass=none"
+for e in disabled evaluate; do TF_RO=1 TF_LIST="[$(li 11 "$OWN")]" TF_GET="$(det $e "$NFF")" tfck "ruleset: own $e is left alone" ok 0 "result=disabled rules_added=-"; done
+TF_LIST="[$(li 11 "$OWN")]" TF_GET="$(det active "$NFF")" TF_GET2="$(det active "$SC")" tfck "ruleset: PUT read-back lacks a rule" ok 0 "result=conflict"
+tfl "conflict: one PUT, no retry" "$PUT" 1
+# failures
+TF_LIST='[]' TF_LIST2="[$(li 11 "$OWN")]" tfck "ruleset: POST 422 then own exists" w422 0 "result=existed"
+tfl "existed: one POST, list read twice" "$POST" 1; tfl "existed: list called twice" 'includes_parents=true&targets=branch&per_page=100$' 2
+TF_ARGS=--admin-bypass TF_LIST2='[]' tfck "ruleset: POST 422 naming bypass actors" w422b 0 "result=bypass_rejected" "detail=Validation Failed: Invalid Bypass Actors: actor_id 5"
+[ "$(wc -l <"$out" | tr -d ' ')" = 1 ] && ! grep -qF "second line" "$out"; row team-fix "bypass_rejected: one-line detail" 0 $? 0 "multi-line output"
+TF_LIST2='[]' tfck "ruleset: POST 422 without bypass fails" w422b 0 "result=failed" "detail=Validation Failed: Invalid Bypass Actors: actor_id 5"
+[ "$(wc -l <"$out" | tr -d ' ')" = 1 ] && ! grep -qF "second line" "$out"; row team-fix "failed: one-line detail" 0 $? 0 "multi-line output"
+tfck "ruleset: POST 403 fails, exit 0" w403 0 "result=failed" "detail=gh: Must have admin rights (HTTP 403)"
+[ "$(wc -l <"$out" | tr -d ' ')" = 1 ] && ! grep -qF "second line" "$out"; row team-fix "403: one-line stderr detail" 0 $? 0 "multi-line output"
+TF_ARGS=--admin-bypass TF_LIST="[$(li 11 "$OWN")]" TF_GET="$(det active "$NFF")" tfck "ruleset: PUT 422 naming bypass actors" w422b 0 "result=bypass_rejected" "detail=Validation Failed: Invalid Bypass Actors: actor_id 5"
+TF_ARGS=--admin-bypass TF_LIST2='[]' tfck "ruleset: generic 422 with --admin-bypass fails" w422 0 "result=failed" "detail=Validation Failed: rules: invalid"
+TF_LIST="[$(li 11 "$OWN")]" TF_GET="$(det active "$NFF")" tfck "ruleset: PUT 422 without bypass fails" w422 0 "result=failed" "detail=Validation Failed: rules: invalid"
+TF_ARGS=--admin-bypass TF_LIST2='[]' tfck "ruleset: 422 bypass_actors code only" w422f 0 "result=bypass_rejected" "detail=Validation Failed: bypass_actors: invalid"
+TF_ARGS=--admin-bypass TF_LIST="[$(li 11 "$OWN")]" TF_GET="$(det active "$NFF" "[$ADM,$OLD]")" tfck "ruleset: Admin actor not added by this run, 422 naming actor" w422b 0 "result=failed" "detail=Validation Failed: Invalid Bypass"
+TF_LIST="[$(li 11 "$OWN")]" TF_GET="$(det bogus "$NFF")" tfck "ruleset: unknown enforcement" ok 0 "result=failed detail=ruleset read is not devkit"; tfl "unknown enforcement: no PUT" "$PUT" 0
+TF_LIST="[$(for i in $(seq 100); do li "$i" "n$i"; echo; done | paste -sd, -)]" tfck "ruleset: 100 rulesets fail" ok 0 "result=failed detail=100 or more"; tfl "100 rulesets: no write" "$POST|$PUT" 0
+TF_ARGS=--force tfck "ruleset: unknown flag is exit 1" ok 1; [ ! -s "$psd/tf.log" ]; row team-fix "unknown flag: no gh call" 0 $? 0 "gh called"
+TF_RO=1 TF_ARGS=--dry-run TF_LIST="[$(li 5 'a\tb\u007f,c=d%')]" tfck "ruleset: others= encodes controls, DEL, comma, =, %" ok 0 "others=a%09b%7F%2Cc%3Dd%25"
+TF_RO=1 TF_ARGS=--dry-run TF_LIST="[$(for i in $(seq 30); do li "$i" "n n n n $i"; echo; done | paste -sd, -)]" tfck "ruleset: long others= is cut after a whole name" ok 0 ",…"
+o="$(sed 's/.*others=//' "$out")"; [ "$(printf '%s' "$o" | wc -c)" -le 200 ] && case "$o" in *%,…|*%?,…) false ;; *,…) true ;; *) false ;; esac; row team-fix "long others=: at most 200 bytes, no split %XX" 0 $? 0 "bad cut: $o"
+TF_RO=1 TF_ARGS=--admin-bypass TF_LIST="[$(li 11 "$OWN")]" TF_GET="$(det active "$NFF,$PR2" "[$ADM]" | sed 's/"never"/"always"/')" tfck "ruleset: bypass already present, can bypass" ok 0 "result=unchanged rules_added=- bypass=verified"
+# W1: a GET that is not devkit's own complete ruleset never turns into a PUT
+TF_LIST="[$(li 11 "$OWN")]" tfck "ruleset: own listed, GET is {}" ok 0 "result=failed detail=ruleset read is not devkit"; tfl "GET {}: no PUT" "$PUT" 0
+TF_LIST="[$(li 11 "$OWN")]" TF_GET='{"id":11,"name":"'"$OWN"'","source_type":"Repository","enforcement":"active","rules":null,"bypass_actors":[],"conditions":{}}' tfck "ruleset: GET with null rules" ok 0 "result=failed"
+tfl "null rules: no PUT" "$PUT" 0
+TF_LIST="[$(li 12 "$OWN")]" TF_GET="$(det active "$NFF")" tfck "ruleset: GET id differs from the listed id" ok 0 "result=failed"; tfl "id differs: no PUT" "$PUT" 0
+TF_LIST='{"message":"x"}' tfck "ruleset: list response not a list" ok 0 "result=failed detail=ruleset list is not a list"; tfl "list not a list: no write" "$POST|$PUT" 0
+tfck "ruleset: POST response without id" noid 0 "result=created rules_added=pull_request,non_fast_forward bypass=none others=- detail=no ruleset id to read back"
+tfck "ruleset: read-back GET fails" rbfail 0 "result=created" "detail=read-back failed: gh: Not Found (HTTP 404)"
+tfck "ruleset: repo view fails" viewfail 0 "action=ruleset result=failed detail=gh: repo view failed"; tfl "repo view fails: no gh api call" '^api ' 0
+# --admin-bypass
+TF_ARGS=--admin-bypass TF_CAN=always tfck "ruleset: bypass read back always" ok 0 "result=created rules_added=pull_request,non_fast_forward bypass=verified"
+tfj "bypass: body carries the Admin role actor" 1 "{'actor_id':5,'actor_type':'RepositoryRole','bypass_mode':'always'} in d['bypass_actors'] and $BODY"
+TF_ARGS=--admin-bypass TF_CAN=never tfck "ruleset: bypass read back never" ok 0 "result=created" "bypass=unverified"
+TF_ARGS=--admin-bypass TF_CAN=always TF_LIST="[$(li 11 "$OWN")]" TF_GET="$(det active "$NFF,$PR2" "[$OLD]")" tfck "ruleset: bypass added to a complete ruleset" ok 0 "result=updated rules_added=- bypass=verified"
+tfj "bypass PUT: old actor kept, Admin added" 1 "d['bypass_actors']==[$OLD,$ADM] and $SIX"
+A5='{"actor_id":5,"actor_type":"RepositoryRole","bypass_mode":"pull_request"}'
+TF_ARGS=--admin-bypass TF_LIST="[$(li 11 "$OWN")]" TF_GET="$(det active "$NFF" "[$A5]" | sed -e 's/~DEFAULT_BRANCH/refs\/heads\/dev/' -e 's/"target":"branch"/"target":"push"/')" tfck "ruleset: Admin actor exists, edited conditions" ok 0 "result=updated rules_added=pull_request"
+tfj "bypass PUT: Admin not duplicated; own conditions and target kept" 1 "d['bypass_actors']==[$A5] and d['conditions']['ref_name']['include']==['refs/heads/dev'] and d['target']=='push'"
+# --dry-run: only reads
+TF_RO=1 TF_ARGS=--dry-run tfck "ruleset dry-run: nothing exists" ok 0 "action=ruleset result=would_create rules_added=pull_request,non_fast_forward bypass=none others=-"
+TF_RO=1 TF_ARGS=--dry-run TF_LIST="[$(li 25369692 kit),$(li 11 "$OWN")]" TF_GET="$(det active "$NFF")" tfck "ruleset dry-run: own NFF-only" ok 0 "result=would_update rules_added=pull_request" "others=kit"
+TF_RO=1 TF_ARGS=--dry-run TF_LIST="[$(li 11 "$OWN")]" TF_GET="$(det active "$NFF,$PR2")" tfck "ruleset dry-run: complete" ok 0 "result=unchanged rules_added=-"
+TF_RO=1 TF_ARGS=--dry-run TF_LIST="[$(li 11 "$OWN")]" TF_GET="$(det disabled "$NFF")" tfck "ruleset dry-run: disabled" ok 0 "result=disabled"
+TF_RO=1 TF_ARGS=--dry-run TF_LIST="[$(li 11 "$OWN"),$(li 12 "$OWN")]" tfck "ruleset dry-run: ambiguous" ok 0 "result=ambiguous"
+(cd "$root" && PATH="$psd/tsnogh" /bin/bash "$tf_" ruleset >/dev/null 2>&1); got=$?
+row team-fix "team-fix ruleset: gh missing is exit 1" 1 "$got" 0 "expected exit 1"
 
 expect "$notify" 0 "always exits 0" '{"message":"test"}'
 
