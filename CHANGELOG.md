@@ -4,6 +4,8 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-10-21
+
 ### Added
 
 - `/devkit:report [since]` (P-37). Team metrics from GitHub data only, for the last 14 days by default (UTC), written to `reports/<YYYYMMDD>.md` (a same-day rerun overwrites it). `scripts/metrics.sh` reads only `gh` and reports merged PRs with their sizes, cycle time from the latest devkit claim comment before the merge, two separate send-back numbers (changes-requested reviews; queue releases after a claim), open bugs by highest severity, queue depth and work in flight. Sizes go through the new `pr-size.sh --excluded-index` mode, so they use the PR size gate's own excludes and limits. Data that cannot be measured (truncated file lists, PRs that close no `ai` issue, issues with 100 comments, 1000-result caps) is counted by reason, never estimated, and wrongly typed `gh` output stops the run. The skill offers a shareable page built from the report's numbers only after an explicit yes. 183 new test rows in `scripts/test-hooks.sh`; no eval.

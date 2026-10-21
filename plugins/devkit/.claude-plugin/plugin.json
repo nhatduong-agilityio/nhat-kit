@@ -1,7 +1,7 @@
 {
   "name": "devkit",
   "description": "Engineering kit for solo engineers and teams: plan, cook, fix, debug, test, review, git, ship, scout, brainstorm, security-scan; bootstrap all 4 layers from a requirements doc; BA task to PR",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "author": {
     "name": "Duong Cong Nhat"
   }
