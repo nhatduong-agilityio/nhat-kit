@@ -46,3 +46,32 @@ Plan: `plans/20261021-team-metrics/plan.md` · Status: in progress (one PR per p
 - Remaining: none.
 - Ship-gate review: Critical none. Warning fixed: wrongly typed gh fields (non-list `files`, non-string `title`, string `additions`, a lone surrogate in a path) crashed with a traceback or were counted as missing; now any of them fails closed with one `metrics: unexpected gh output` line (a Python excepthook plus explicit int checks), one test per type, each also asserting no traceback. Optional fixed: tests for a NUL path and an out-of-range or negative pr-size index; a `true` PR number is rejected; a zero-PR window prints `-` stats (tested).
 
+
+## Phase 3 — `metrics.sh`: cycle time, send-backs, bugs, queue (PR A2) ✅
+- Files: `plugins/devkit/scripts/metrics.sh`, `scripts/test-hooks.sh` (metrics section). 166 lines per `pr-size.sh main`.
+- Implemented by `devkit:fullstack-developer`; review fixes applied in the main session.
+- Adds `closingIssuesReferences` to the PR fetch, plus `gh repo view` and three `gh issue list` fetches (ai issues updated since `since − 1 day` with comments; open bugs; open queue). New lines: cycle (n, missing by reason, median/p90 hours), `review_sendbacks`/`queue_releases` (never summed), bugs by highest severity, `queue_depth`/`in_flight`, and the truncation flags. The per-PR row carries the cycle hours.
+- `closingIssuesReferences` shape checked live and read-only on `cli/cli`: `{id, number, repository{id, name, owner{id, login}}, url}`; matched on lower-cased `owner/name` + number against `gh repo view --json nameWithOwner`.
+- The `capped` assumption confirmed live by the reviewer: on `cli/cli` issue 14090 (117 comments), `issue list` returns the oldest 100 and drops the newest.
+- Decisions the plan left open:
+  - A capped closing issue among several makes the PR `capped`: its hidden newest claim could change the minimum.
+  - Any closing issue of this repo missing from the `ai` search makes the PR `not_fetched` (it may hold the earliest claim; this includes a non-`ai` issue claimed through `/devkit:task`). Other-repo issues beside a fetched one are ignored.
+  - Release order uses comment list order (gh lists oldest first), so a release counts only when a claim was posted before it, even within the same second.
+
+### Evidence
+| Command | Result |
+| --- | --- |
+| `scripts/test-hooks.sh` | 929 cases, 0 failed |
+| Mutation probes (severity by label order, release without a prior claim, capped ignored beside a measurable issue, partial fetch measured, claim at the merge second counted) | each makes 1–3 rows fail; script restored |
+| `bash plugins/devkit/scripts/metrics.sh --since 2026-10-15` (live, read-only) | `prs_merged=36`, `cycle_n=0 no_issue=36`, `review_sendbacks=0 queue_releases=0`, `bugs_open=0`, `queue_depth=0 in_flight=0` (this repo has no issues; the cycle and send-back rules are proven by stub cases only) |
+| `bash plugins/devkit/scripts/pr-size.sh main` | `lines=166 files=2 … status=ok` |
+| `claude plugin validate plugins/devkit --strict && claude plugin validate .` | both pass |
+
+### Review (devkit:code-reviewer)
+- Critical: none.
+- W1 fixed: six mutants survived the suite; new cases pin severity precedence regardless of label order, release-before-claim, capped among several, a partial fetch, the same-second release order, and a claim at the exact merge second.
+- W2 fixed: a PR with one fetched and one unfetched closing issue of this repo was measured from the fetched one only (could be too short); now `not_fetched`.
+- Optional fixed: release order by comment position instead of `<=` on timestamps; malformed reviews fail closed instead of being skipped; bad-type tests for `closingIssuesReferences` and `reviews`.
+- Remaining: none.
+- Ship-gate review: Critical none. Warning fixed: the header said releases are counted on every issue; only `ai` issues are fetched, so it now says so and that releases on other issues are not seen. Optional fixed: a falsy wrong type (`""`, `{}`) for `closingIssuesReferences` or `reviews` now fails closed instead of reading as empty (tested, with a no-traceback check); the header states the order in which missing-cycle reasons are checked (`no_issue`, `not_fetched`, `capped`, `no_claim`), matching the code.
+
