@@ -149,7 +149,7 @@ A teammate's squad-orchestration plugin, used as an idea source ([repo](https://
 | Agents stay in their lane | plugin hook | ⏳ | P-43 (stage 2) |
 | Protected branches: GitHub protection + local template hook | `/devkit:check`, template hook | ✅ | P-44 (shared); `scripts/branch-protection.sh` feeds a `/devkit:check` Layer 4 row; template hook `block-protected-push.sh` blocks pushes to the `CLAUDE.md` protected branches, filled by `/devkit:bootstrap`; tested in `scripts/test-hooks.sh`, no eval |
 | Platform CLI only through a read/write wrapper; user types secrets | `/devkit:deploy` | ⏳ | P-45 (stage 1, all platforms) |
-| Task state: native sub-issues/dependencies vs Projects board | — | ⏳ | P-46 (research before stage 2) |
+| Task state: native sub-issues/dependencies vs Projects board | issues (research) | ✅ | P-46 (research, `plans/20261021-squad-task-state/`); native issues win (proven on a personal repo; org repos out of scope): sub-issues for epic → task, issue dependencies for waves, labels and machine-readable comments for scalars (issue types and fields are org-only); no Projects board, so relink is not needed |
 | Per-run dollar cap, large mechanical changes | `--max-budget-usd`, `/batch` | ⊘ | |
 | Railway-only scripts as they are | — | ✗ | generalized into P-45 |
 

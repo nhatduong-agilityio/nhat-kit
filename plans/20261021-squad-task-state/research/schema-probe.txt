@@ -1,0 +1,81 @@
+# Read-only GraphQL introspection, 2026-10-21T15:05:12Z, gh 2.102.0
+## Issue fields matching sub/parent/block/type/field
+blockedBy: IssueConnection
+blocking: IssueConnection
+issueFieldValues: IssueFieldValueConnection
+issueType: IssueType
+parent: Issue
+subIssues: IssueConnection
+subIssuesSummary: SubIssuesSummary
+viewerCanSetFields: Boolean
+viewerCanType: Boolean
+## Mutations matching sub/block/type/field
+addBlockedBy
+addSubIssue
+createIssueField
+createIssueFieldValue
+createIssueType
+createProjectV2IssueField
+deleteIssueField
+deleteIssueFieldValue
+deleteIssueType
+removeBlockedBy
+removeSubIssue
+reprioritizeSubIssue
+setIssueFieldValue
+updateEnterpriseMembersCanViewDependencyInsightsSetting
+updateIssueField
+updateIssueFieldValue
+updateIssueIssueType
+updateIssueType
+## gh issue list --json fields
+Specify one or more comma-separated fields for `--json`: assignees author blockedBy blocking body closed closedAt closedByPullRequestsReferences comments createdAt id isPinned issueType labels milestone number parent projectCards projectItems reactionGroups state stateReason subIssues subIssuesSummary title updatedAt url 
+## gh issue create/edit flags
+      --blocked-by numbers   Mark the new issue as blocked by these issue numbers or URLs
+      --parent number        Add the new issue as a sub-issue of the specified parent number or URL
+      --type name            Set the issue type by name
+  $ gh issue create --type Bug
+  $ gh issue create --parent 100
+  $ gh issue create --parent https://github.com/cli/go-gh/issues/42
+  $ gh issue create --blocked-by 200,201 --blocking 300
+      --parent number              Set the parent issue by number or URL
+      --type name                  Set the issue type by name
+  $ gh issue edit 23 --type Bug
+  $ gh issue edit 23 --parent 100
+## Org Agility-Vietnam issue types (read-only)
+{"data":{"organization":{"issueTypes":{"nodes":[{"name":"Task","isEnabled":true},{"name":"Bug","isEnabled":true},{"name":"Feature","isEnabled":true}]}}}}
+## Org membership role (read-only)
+member
+active
+## Token scopes
+  - Token scopes: 'gist', 'read:org', 'repo'
+## gh issue edit: dependency / field flags
+      --add-blocked-by number      Add 'blocked by' relationships by issue number or URL
+      --add-blocking number        Add 'blocking' relationships by issue number or URL
+      --add-sub-issue number       Add sub-issues by number or URL
+      --parent number              Set the parent issue by number or URL
+      --remove-blocked-by number   Remove 'blocked by' relationships by issue number or URL
+      --remove-blocking number     Remove 'blocking' relationships by issue number or URL
+      --remove-parent              Remove the parent issue
+      --remove-sub-issue number    Remove sub-issues by number or URL
+  $ gh issue edit 23 --parent 100
+  $ gh issue edit 23 --remove-parent
+  $ gh issue edit 100 --add-sub-issue 123,124
+  $ gh issue edit 123 --add-blocked-by 200 --add-blocking 300,301
+## Organization fields matching issueField
+issueFields
+issueTypes
+pinnedIssueFields
+## Org Agility-Vietnam issue fields (read-only)
+{"data":{"organization":{"issueFields":{"nodes":[{"__typename":"IssueFieldSingleSelect","name":"Priority"},{"__typename":"IssueFieldDate","name":"Start date"},{"__typename":"IssueFieldDate","name":"Target date"},{"__typename":"IssueFieldSingleSelect","name":"Effort"}]}}}}
+## User/Repository fields matching issueType/issueField (personal repo support)
+issueFields
+issueType
+issueTypes
+viewerCanSeeIssueFields
+{"data":{"repository":{"issueTypes":null}}}
+## IssueField-related input types
+{"data":{"__type":{"inputFields":[{"name":"clientMutationId","type":{"name":"String","kind":"SCALAR","ofType":null}},{"name":"issueId","type":{"name":null,"kind":"NON_NULL","ofType":{"name":"ID"}}},{"name":"issueFields","type":{"name":null,"kind":"NON_NULL","ofType":{"name":null}}}]}}}
+## SubIssuesSummary / IssueDependenciesSummary fields
+["completed","percentCompleted","total"]
+["blockedBy","blocking","totalBlockedBy","totalBlocking"]
