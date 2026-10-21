@@ -46,3 +46,23 @@ Plan: `plans/20261020-check-fix/plan.md` · Delivered as 3 stacked PRs (A, B, C)
 - Ship review: **C1** a nested repo below an ignored dir (`build/sub`, listing collapses to `build/`) and **C2** a name git quotes (`né/`) were missed and removal deleted their history → detected via a second, non-`--directory` listing (git stops at nested repos and lists each as `<dir>/`; stops at the first hit; a failed listing keeps the row) and `core.quotePath=false`; 6 new test rows, all failing on the old script. Retry 3 on opus.
 - Ship gate-6 re-review (0 Critical/Warning): S1 the nested-repo listing now pipes to `grep -zqm1` (was a bash read loop, ~1.5 s per 200k-file tree); fail-closed via `PIPESTATUS` (git must exit 0 and grep 1 for `nest=0`) — probed with a failing `git ls-files` → `kept`.
 - Remaining (accepted): O-a only the ignored *count* is re-checked (new files inside an already-listed ignored directory are not detected); O-d `prune` acts on whatever is prunable at run time (metadata only, locked entries respected); one gh call per eligible worktree on each status run.
+
+## PR C — Phases 5–6 (branch `feat/check-fix-ruleset`, from `main` after #32/#33 merged)
+
+### Files changed
+- `plugins/devkit/scripts/team-fix.sh` (`ruleset [--admin-bypass] [--dry-run]`), `plugins/devkit/skills/check-fix/SKILL.md` (ruleset step), `plugins/devkit/skills/check/SKILL.md` (protection row → `/devkit:check-fix`), `scripts/test-hooks.sh` (+ ruleset section), `CHANGELOG.md`, `UPSTREAM.md` (P-32 ✅), `upstream/proposals/20261018.md` (P-32 done)
+
+### Evidence
+- `scripts/test-hooks.sh` → "746 cases, 0 failed. All hooks passed." (372 new P-32 rows in total; 374 before P-32)
+- Live `team-fix.sh ruleset --dry-run`, run only through a write-blocking `gh` wrapper (refuses `-X` other than GET and any `--input`/field flag) → `action=ruleset result=would_create rules_added=pull_request,non_fast_forward bypass=none others=kit`; the wrapper blocked nothing (the script attempted no write); live rulesets still `["kit"]`
+- `gh api` error body goes to stdout (live read-only 404 GET: stdout `{"message":"Not Found",…}`, stderr `gh: Not Found (HTTP 404)`)
+- `claude plugin validate plugins/devkit --strict && claude plugin validate .` → both pass
+- `bash pr-size.sh main` → `lines=282 files=8 … status=ok`
+- TDD: 116 rows written first; the stub fails any implicit write (`gh api` POSTs when fields/`--input` are given without `-X`)
+
+### Review findings
+- Advisor (before tests): implicit POST in `gh api` → dry-run rows assert no body flags; all five `pull_request` params asserted; live dry-run only through a write-blocking wrapper.
+- Code-reviewer + tester gaps (0 Critical), fixed in retry 1 on opus: W1 merge guard failed open on a `{}`/null GET (would PUT defaults over devkit's ruleset) → explicit existing mode, id/source/name/list checks, no PUT; W2 list pagination `per_page=100` (and fail at ≥100); W3 `bypass_rejected` only when the 422 body mentions bypass/actor, detail from the JSON body; W4 check-fix asks only on `would_create|would_update`, handles `unchanged`/`existed`, cites Approval; optional: `others=` names percent-encoded, no Tracebacks in detail, read-back GET failure no longer reads as `conflict`, 13 more negative rows, plan Risks reworded (no GET→PUT lost-update protection).
+- Ship gate-6 review (0 Critical), fixed in retry 2 on opus: W1 `bypass_rejected` decided from the raw 422 body + stderr, `err` renders dict errors without `message` as `field: code` and joins multi-line text; W2 `bypass_rejected` only when this run added the Admin actor (`merge` prints `added_actor`); W3 check-fix manual steps (settings URL, the two rules, org/foreign owners); W4 check suggests `/devkit:check-fix` for worktrees and protection; S1 unknown `enforcement` on GET → failed, no PUT; S3 `others=` encodes all controls and DEL, cut after whole names to 200 bytes with `,…`; S5/S8 one result list in step 7, `created`/`updated` with `detail=` → settings URL, question says the dry-run is without bypass and the bypass answer adds the Admin role; S6 rows for ≥100 rulesets and `--force`. 746 cases, 0 failed.
+- Remaining from gate 6: S2 `list` coerces ids with `int()` (accepts `11.9`, `"11"`, `true`); the merge guard fails closed (GET `id` must be an int equal to the listed id, plus `source_type` and `name`); S4 `detail=` runs to the end of the line (documented in the team-fix header).
+- Remaining: Admin role `actor_id 5` unverified (read-back decides `bypass=verified|unverified`); no protection against an edit between our GET and PUT; `Bash(bash */team-fix.sh *)` matches any path (same pattern as other scripts).

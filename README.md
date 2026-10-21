@@ -25,7 +25,7 @@ The `nhat-kit` marketplace contains the **devkit 2.4.0** plugin: 19 commands, 10
 | `/devkit:deploy [staging\|prod] [--dry-run]` | After a PR merges: deploy to staging then prod | deployer |
 | `/devkit:retro` | After a task where you had to correct Claude several times | — |
 | `/devkit:check` | Health-check a project's 4 layers | — |
-| `/devkit:check-fix` | After `check` reports team setup gaps: create missing queue labels after one yes; login gaps shown as manual steps | — |
+| `/devkit:check-fix` | After `check` reports team setup gaps: safe fixes (missing queue labels, `git worktree prune`) after one yes; a separate yes per merged-worktree removal and for the default-branch ruleset; login gaps shown as manual steps | — |
 | `/devkit:security-scan` | Whole-project scan: leaked secrets, vulnerable dependencies (installed audit tools only), sensitive tracked files, risky code sinks → redacted report; `/security-review` covers the branch diff | security-scanner |
 
 Claude may invoke these on its own when relevant: `plan`, `fix`, `debug`, `test`, `review`, `scout`, `brainstorm`. These run only when you type them, because they have side effects or run a long interview: `bootstrap`, `task`, `cook`, `git`, `ship`, `deploy`, `retro`, `check`, `check-fix`, `grill`, `issue`, `security-scan`.

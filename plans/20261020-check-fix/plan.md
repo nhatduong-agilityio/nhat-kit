@@ -1,5 +1,5 @@
 # Team checks in /devkit:check, fixes in /devkit:check-fix
-Status: in-progress · Source: P-32 in `upstream/proposals/20261018.md` (v2.6.0, "Approvals and shared queue") · Mode: standard
+Status: done · Source: P-32 in `upstream/proposals/20261018.md` (v2.6.0, "Approvals and shared queue") · Mode: standard
 Approved: 2026-10-20 by nhatduong-agilityio
 
 ## Goal
@@ -93,7 +93,7 @@ Approved: 2026-10-20 by nhatduong-agilityio
       - It adds the missing rule types and keeps the existing rule objects and their `parameters` as they are.
       - With `--admin-bypass`, it adds `{"actor_id":5,"actor_type":"RepositoryRole","bypass_mode":"always"}` when that entry is absent. It never removes an actor.
       - Nothing to add → `result=unchanged`.
-      - Otherwise it PUTs a body built from the six editable keys only, then reads the ruleset back. If the rules read back differ from what was sent → `result=conflict` (a lost update), and it does not retry.
+      - Otherwise it PUTs a body built from the six editable keys only, then reads the ruleset back. If the rules read back differ from what was sent → `result=conflict` (a change made after the write), and it does not retry.
     - No candidate: it POSTs a new ruleset. On a 422, it lists again:
       - Its own ruleset now exists → `result=existed`.
       - Else, with `--admin-bypass` → `result=bypass_rejected`.
@@ -244,7 +244,7 @@ Rejected:
   - The size check against PR A's branch reports `status=ok`.
 
 ### Phase 5 — `team-fix.sh ruleset` with stub-gh tests (PR C, riskiest write)
-- [ ] Implement `ruleset [--admin-bypass] [--dry-run]` as described in Approach:
+- [x] Implement `ruleset [--admin-bypass] [--dry-run]` as described in Approach:
   - The ADMIN gate.
   - The list with `includes_parents=true`, filtered by `source_type` and name.
   - The `ambiguous` result, the merge, and POST or PUT.
@@ -252,7 +252,7 @@ Rejected:
   - The read-back of the rules (`conflict`) and of `current_user_can_bypass`.
 
   Bodies go through a temp file passed with `--input`. File: `plugins/devkit/scripts/team-fix.sh`.
-- [ ] Add a stub `gh` chosen by `TF_CASE`. It logs arguments to `$TF_LOG`, copies each `--input` file to `$TF_LOG.<n>.json`, and serves a different second GET or list response when a case needs one. Add a `tfck` helper. Cases:
+- [x] Add a stub `gh` chosen by `TF_CASE`. It logs arguments to `$TF_LOG`, copies each `--input` file to `$TF_LOG.<n>.json`, and serves a different second GET or list response when a case needs one. Add a `tfck` helper. Cases:
   - Permission WRITE → `refused reason=not_admin`, and only `repo view` in the log.
   - No rulesets → POST. The body has both rules and `~DEFAULT_BRANCH` → `created`.
   - Only the foreign `kit` (the live shape) → POST, no PUT to its id, and `others=kit`.
@@ -273,23 +273,23 @@ Rejected:
   - `gh` missing → exit 1.
 
   File: `scripts/test-hooks.sh`.
-- [ ] Assumption check: look for the Admin role actor id in the GitHub docs, or in a ruleset the user already has with an Admin bypass. Read it only; do not create one. Record the source in the script header, or write "unverified; the read-back decides".
-- [ ] Manual read-only run in this repo: `bash plugins/devkit/scripts/team-fix.sh ruleset --dry-run`.
+- [x] Assumption check: look for the Admin role actor id in the GitHub docs, or in a ruleset the user already has with an Admin bypass. Read it only; do not create one. Record the source in the script header, or write "unverified; the read-back decides".
+- [x] Manual read-only run in this repo: `bash plugins/devkit/scripts/team-fix.sh ruleset --dry-run`.
 - Verify:
   - `scripts/test-hooks.sh` exits 0, with every `team-fix ruleset` row `ok` (at least 20 rows).
   - `bash -n` passes on the script.
   - The manual run prints `action=ruleset result=would_create rules_added=pull_request,non_fast_forward` with `others=kit`, and exits 0. Any other result is recorded with its line.
 
 ### Phase 6 — Ruleset step in `check-fix`, final docs (PR C)
-- [ ] Add `Bash(bash */branch-protection.sh *)` and the ruleset step from Approach to the skill:
+- [x] Add `Bash(bash */branch-protection.sh *)` and the ruleset step from Approach to the skill:
   - The dry-run line inside the question.
   - The three answers, and the re-ask on `bypass_rejected`.
   - The settings URL on `bypass=unverified`.
   - Manual steps for non-admins and for organization rulesets.
 
   File: `plugins/devkit/skills/check-fix/SKILL.md`.
-- [ ] Change `:33` "there is no `--fix` yet" to "run `/devkit:check-fix`". File: `plugins/devkit/skills/check/SKILL.md`.
-- [ ] Docs:
+- [x] Change `:33` "there is no `--fix` yet" to "run `/devkit:check-fix`". File: `plugins/devkit/skills/check/SKILL.md`.
+- [x] Docs:
   - Mark row `:138` as ✅ and name where the pieces live: the three `/devkit:check` team rows, `/devkit:check-fix`, the three scripts, and the comparison with `/squad:doctor` written in our own words. Record "no eval" and why. File: `UPSTREAM.md`.
   - Finish the P-32 entry: safe fixes versus fixes that need their own yes, devkit's own ruleset with the Admin bypass question, nothing stored locally, and the test row count. File: `CHANGELOG.md`.
   - Mark P-32 done at `:85` and `:91`, and remove the command line at `:94`. File: `upstream/proposals/20261018.md`.
@@ -299,7 +299,7 @@ Rejected:
   - `grep -n 'P-32' upstream/proposals/20261018.md` shows it done, with no command line left.
   - `UPSTREAM.md` row 138 shows ✅.
   - `scripts/test-hooks.sh` passes.
-  - The size check against PR B's branch reports `status=ok`.
+  - The size check against `main` reports `status=ok` (PR B merged).
 
 ## Risks
 | Risk | Signal | Mitigation |
@@ -309,7 +309,7 @@ Rejected:
 | High: removing a worktree someone still needs | Lost work or a lost `.env.local` | `merged` needs a merged PR at the exact tip and a clean tree. A new branch is `kept`. The ignored entries are named in the question. A yes for each worktree. Never `--force`, never the current worktree, and the branch is kept |
 | Medium: assumption that the Admin role is `actor_id: 5`. It is not in the docs (checked 2026-10-20) | `bypass_rejected`, or `bypass=unverified` | The skill re-asks with no bypass or cancel, and gives the settings URL. Phase 5 looks for a source |
 | Medium: assumption about the exact stderr of `gh label create` for an existing label (exit 1, no HTTP code) | A race shows as an unclear `failed` | The `detail` is gh's own message. Only reported-missing labels are created, so a race is rare. The stub mimics the shape, but the wording is unverified |
-| Medium: a concurrent edit of devkit's ruleset by another admin | Duplicate rulesets or a lost update | Re-list on 422 (`existed`), `ambiguous` when there are two, and the read-back `conflict` with no retry |
+| Medium: a concurrent edit of devkit's ruleset by another admin | Duplicate rulesets or a lost update | Re-list on 422 (`existed`), `ambiguous` when there are two, and the read-back `conflict` with no retry; the read-back only catches changes made after the write, so an edit between our GET and PUT can still be overwritten |
 | Medium: a PR exceeds the 300-line gate (PR C is the tightest) | The size check reports over | Keep the stub cases table-driven. If C is still over, move the Phase 6 docs to a small PR D. No limit is raised |
 | Medium: `team-fix.sh` is pre-approved in `check-fix`, so the model could call it without a yes | A fix happens without a question | The skill is typed by the user only. Every action re-checks its preconditions: ADMIN, `merged`, reported missing |
 | Low: an older gh has no `scopes` in `--json hosts` | Scopes show as unknown | The row is Unknown, not Needs fix |
