@@ -1,24 +1,34 @@
 #!/usr/bin/env bash
 # Measure the size of the current change against a base: lines added + deleted and files changed.
 # Usage: pr-size.sh [base]        (base defaults to origin/HEAD, else main)
+#        pr-size.sh --excluded-index <file>   (file: NUL-separated paths; used by metrics.sh)
 # Limits and exclude globs come from docs/devkit.md at the repo root; defaults apply when missing.
 # Output: one summary line, then up to 5 "path<TAB>lines" rows. Never prints file contents.
-# Exit: 0 ok, 3 over a limit, 1 usage / not a repo / bad base.
+#   --excluded-index: "max_lines=N max_files=M", then the 0-based index of each excluded path.
+# Exit: 0 ok, 3 over a limit, 1 usage / not a repo / bad base / unreadable list file.
 d_lines=300; d_files=10
 d_excl='*.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, go.sum, Cargo.lock, **/__snapshots__/**, *.snap, dist/**, build/**, *.min.*'
 tab=$'\t'
 
-[ "$#" -le 1 ] || { echo "usage: pr-size.sh [base]" >&2; exit 1; }
+idx=""
+usage() { echo "usage: pr-size.sh [base] | --excluded-index <file>" >&2; exit 1; }
+if [ "${1:-}" = --excluded-index ]; then
+  [ "$#" -eq 2 ] && [ -n "$2" ] || usage
+  case "$2" in /*) idx="$2" ;; *) idx="$PWD/$2" ;; esac
+else [ "$#" -le 1 ] || usage; fi
 top="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "pr-size: not a git repository" >&2; exit 1; }
 cd "$top" || exit 1
 git rev-parse --verify -q 'HEAD^{commit}' >/dev/null 2>&1 || { echo "pr-size: no commits yet" >&2; exit 1; }
 
-base="${1:-}"
-if [ -z "$base" ]; then
+base=""; [ -n "$idx" ] || base="${1:-}"
+if [ -n "$idx" ]; then :
+elif [ -z "$base" ]; then
   if git rev-parse --verify -q 'origin/HEAD^{commit}' >/dev/null 2>&1; then base=origin/HEAD; else base=main; fi
 fi
-git rev-parse --verify -q "$base^{commit}" >/dev/null 2>&1 || { echo "pr-size: unknown base '$base'" >&2; exit 1; }
-mb="$(git merge-base "$base" HEAD 2>/dev/null)" || { echo "pr-size: no merge base with '$base'" >&2; exit 1; }
+if [ -z "$idx" ]; then
+  git rev-parse --verify -q "$base^{commit}" >/dev/null 2>&1 || { echo "pr-size: unknown base '$base'" >&2; exit 1; }
+  mb="$(git merge-base "$base" HEAD 2>/dev/null)" || { echo "pr-size: no merge base with '$base'" >&2; exit 1; }
+fi
 
 cfg="$top/docs/devkit.md"
 cfg_get() { # cfg_get <key>: value of the first "- key: value" line, trimmed; empty when missing
@@ -56,6 +66,16 @@ excluded() { # excluded <path>
   done
   return 1
 }
+
+if [ -n "$idx" ]; then
+  [ -r "$idx" ] && [ ! -d "$idx" ] || { echo "pr-size: cannot read '$idx'" >&2; exit 1; }
+  echo "max_lines=$max_lines max_files=$max_files"
+  i=0
+  while IFS= read -r -d '' p || [ -n "$p" ]; do
+    excluded "$p" && echo "$i"; i=$((i + 1))
+  done <"$idx"
+  exit 0
+fi
 
 lines=0; files=0; skipped=0; rows=""; partial=""
 row() { # row <lines> <path>: one display row; control characters in the name become "?"
