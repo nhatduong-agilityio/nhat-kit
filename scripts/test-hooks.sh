@@ -1101,6 +1101,97 @@ TF_RO=1 TF_ARGS=--dry-run TF_LIST="[$(li 11 "$OWN"),$(li 12 "$OWN")]" tfck "rule
 (cd "$root" && PATH="$psd/tsnogh" /bin/bash "$tf_" ruleset >/dev/null 2>&1); got=$?
 row team-fix "team-fix ruleset: gh missing is exit 1" 1 "$got" 0 "expected exit 1"
 
+# --- metrics: stub gh chosen by MX_CASE; the fixture JSON comes from MX_FIX ---
+mx="$root/plugins/devkit/scripts/metrics.sh"
+mkdir -p "$psd/mxbin"
+cat >"$psd/mxbin/gh" <<'STUB'
+#!/usr/bin/env bash
+# Stub gh for metrics.sh. Allowed calls: "auth status" (fails when MX_CASE=noauth) and "pr list" (prints $MX_FIX, or
+# garbage when MX_CASE=badjson, or fails when MX_CASE=prfail). Every call is logged to $MX_LOG; anything else exits 1.
+echo "$*" >>"${MX_LOG:-/dev/null}"
+case "$1 $2" in
+  "auth status") [ "${MX_CASE:-}" != noauth ] || exit 1 ;;
+  "pr list") case "${MX_CASE:-}" in badjson) echo 'not json' ;; prfail) exit 1 ;; *) cat "$MX_FIX" ;; esac ;;
+  *) exit 1 ;;
+esac
+STUB
+chmod +x "$psd/mxbin/gh"
+mxfix() { # mxfix <python expr using pr(n, merged, files, cf=None, revs=0, title="t")>: write the fixture
+  python3 -c '
+import json, sys
+def pr(n, m="2026-10-12T10:00:00Z", files=(), cf=None, revs=0, title="t"):
+    fs = [{"path": p, "additions": a, "deletions": d} for p, a, d in files]
+    return {"number": n, "title": title, "mergedAt": m, "changedFiles": len(fs) if cf is None else cf, "files": fs,
+            "reviews": [{"state": "CHANGES_REQUESTED" if i < 2 else "APPROVED", "body": "secret"} for i in range(revs)]}
+json.dump(eval(sys.argv[1]), open(sys.argv[2], "w"))' "$1" "$psd/mx.json"
+}
+mxck() { # mxck <name> <MX_CASE> <exp exit> <expected substring>... (dir MX_DIR, script MX_SCRIPT, args MX_ARGS; stderr in $out2)
+  local name="$1" cs="$2" ex="$3" got s; shift 3; : >"$psd/mx.log"
+  (cd "${MX_DIR:-$r}" && PATH="$psd/mxbin:$PATH" MX_CASE="$cs" MX_FIX="$psd/mx.json" MX_LOG="$psd/mx.log" \
+    "${MX_SCRIPT:-$mx}" ${MX_ARGS---since 2026-10-10} >"$out" 2>"$out2"); got=$?
+  row metrics "$name" "$ex" "$got" 0 "exit code differs (script missing?)"
+  for s in "$@"; do grep -qF -- "$s" "$out" "$out2"; row metrics "$name: $s" 0 $? 0 "missing: $s"; done
+}
+mkrepo mxr; L1="[('a.js',10,5),('package-lock.json',500,0)]"
+mxfix "[pr(1,files=$L1,title='one'),pr(2,files=[('b.js',20,0)],revs=3)]"
+mxck "two PRs, lock file excluded" ok 0 "since=2026-10-10 until=" "prs_merged=2 prs_truncated=0" "size_n=2 size_missing=0 lines_median=15 lines_p90=20 files_median=1 files_p90=1 over_limit=0 max_lines=300 max_files=10" "capped_items=0" "#1${T}15${T}1${T}-${T}0${T}one" "#2${T}20${T}1${T}-${T}2${T}t"
+[ "$(grep -n '^#2' "$out" | cut -d: -f1)" -lt "$(grep -n '^#1' "$out" | cut -d: -f1)" ]; row metrics "rows: highest PR number first" 0 $? 0 "order"
+! grep -qF secret "$out" "$out2"; row metrics "review bodies are never printed" 0 $? 0 "body leaked"
+mxfix "[pr(1,files=[('a.js',4,0)]),pr(2,files=[('package-lock.json',900,0),('b.js',6,0)]),pr(3,files=[('b.js',2,0),('package-lock.json',50,0)])]"
+mxck "excluded index is global and paths are deduplicated" ok 0 "#1${T}4${T}1" "#2${T}6${T}1" "#3${T}2${T}1" "size_n=3"
+mxfix "[pr(n,files=[('f',n,0)]) for n in range(1,11)]"
+mxck "nearest rank on 10 PRs: median 5th, p90 9th" ok 0 "lines_median=5 lines_p90=9"
+mxfix "[pr(n,files=[('f',n,0)]) for n in range(1,8)]"
+mxck "nearest rank on 7 PRs: median 4th" ok 0 "lines_median=4 lines_p90=7"
+mxfix "[pr(1,m='2026-10-10T00:00:00Z',files=[('a',1,0)])]"
+mxck "PR merged exactly at since 00:00Z is included" ok 0 "prs_merged=1"
+mxfix "[pr(1,files=[('a',1,0)]),{'number':2,'title':'x'}]"
+mxck "malformed PR entry is exit 1" ok 1 "unexpected gh output"
+for bad in "dict(pr(1),files=3)" "dict(pr(1),title=5)" "pr(1,files=[('a','5',0)])" "pr(1,files=[('a\\x00b',1,0)])" "pr(1,files=[('a\\ud800',1,0)])" "dict(pr(1),number=True)"; do
+  mxfix "[$bad]"; mxck "wrongly typed gh field fails closed: $bad" ok 1 "metrics: unexpected gh output"
+  ! grep -q Traceback "$out2"; row metrics "no traceback: $bad" 0 $? 0 "traceback printed"
+done
+mxfix "[]"
+mxck "no PRs in the window" ok 0 "prs_merged=0" "size_n=0 size_missing=0 lines_median=- lines_p90=- files_median=- files_p90=- over_limit=0"
+mxfix "[pr(1,files=$L1),pr(2,files=[('b.js',20,0)],cf=3)]"
+mxck "files shorter than changedFiles: size missing" ok 0 "size_n=1 size_missing=1 lines_median=15" "#2${T}-${T}-${T}-${T}0"
+mxfix "[pr(1,files=[('big.js',400,0)]),pr(2,files=[('m.js',1,0)])]"
+mxck "PR over the line limit" ok 0 "over_limit=1"
+mkrepo mxcfg "- pr_max_lines: 1000"
+mxck "docs/devkit.md raises the limit" ok 0 "over_limit=0 max_lines=1000"
+mkrepo mxr2
+mxfix "[pr(1,m='2026-10-09T23:00:00Z',files=[('a',1,1)]),pr(2,files=[('b',1,1)])]"
+mxck "PR merged before since is dropped" ok 0 "prs_merged=1" "#2"
+grep -qF -- "merged:>=2026-10-09" "$psd/mx.log"; row metrics "search uses since minus one day" 0 $? 0 "log: $(cat "$psd/mx.log")"
+! grep -q '^#1' "$out"; row metrics "dropped PR has no row" 0 $? 0 "row #1 printed"
+mxfix "[pr(n,files=[('a',1,1)]) for n in range(1,1001)]"
+mxck "1000 PRs: truncated flag" ok 0 "prs_merged=1000 prs_truncated=1"
+mxfix "[pr(1,files=[('a',1,1)],revs=100),pr(2,files=[('a',1,1)],revs=99)]"
+mxck "exactly 100 reviews is capped" ok 0 "capped_items=1"
+mxfix "[pr(1,files=[('a',1,1)],title='a\x01b\tc\u2028d\u202ee\x85f')]"
+mxck "control, line-separator and bidi characters in a title are cleaned" ok 0 "a b c d e f"
+MX_ARGS="--since 2026-1-5" mxck "bad --since format" ok 1 "usage:"
+MX_ARGS="--since 2026-02-31" mxck "impossible date" ok 1 "invalid date"
+MX_ARGS="--bogus" mxck "unknown argument" ok 1 "usage:"
+MX_ARGS="" mxck "default since is 14 days ago" ok 0 "since=$(python3 -c 'import datetime as d; print((d.datetime.now(d.timezone.utc)-d.timedelta(days=14)).strftime("%Y-%m-%d"))')"
+mxck "gh not logged in" noauth 1 "metrics: gh not logged in"
+mxck "gh pr list fails" prfail 1 "metrics:"
+mxck "invalid JSON from pr list" badjson 1 "unexpected gh output"
+# pr-size.sh is found beside metrics.sh (no slash in $0), and a failing one never counts every path
+mkrepo mxrun; mkdir "$r/s"; cp "$mx" "$ps" "$r/s/"
+mxfix "[pr(1,files=[('a.js',3,0)])]"
+MX_DIR="$r/s" MX_SCRIPT=/bin/bash MX_ARGS="metrics.sh --since 2026-10-10" mxck "bash metrics.sh finds pr-size.sh beside it" ok 0 "lines_median=3"
+for bad in 5 -1; do
+  printf '#!/bin/sh\necho max_lines=300 max_files=10\necho %s\n' "$bad" >"$r/s/pr-size.sh"
+  MX_DIR="$r/s" MX_SCRIPT=/bin/bash MX_ARGS="metrics.sh --since 2026-10-10" mxck "pr-size index $bad out of range is exit 1" ok 1 "unexpected pr-size output"
+done
+printf '#!/bin/sh\nexit 1\n' >"$r/s/pr-size.sh"
+MX_DIR="$r/s" MX_SCRIPT=/bin/bash MX_ARGS="metrics.sh --since 2026-10-10" mxck "pr-size.sh failure is exit 1" ok 1 "pr-size.sh failed"
+mkdir -p "$psd/mxnogh"; ln -sf "$(command -v python3)" "$psd/mxnogh/python3"; ln -sf "$(command -v git)" "$psd/mxnogh/git"
+(cd "$r" && PATH="$psd/mxnogh" /bin/bash "$mx" >/dev/null 2>"$out2"); got=$?
+row metrics "gh missing is exit 1" 1 "$got" 0 "expected exit 1"
+grep -qF "metrics: gh required" "$out2"; row metrics "gh missing: message" 0 $? 0 "got: $(cat "$out2")"
+
 expect "$notify" 0 "always exits 0" '{"message":"test"}'
 
 echo "$cases cases, $nfail failed, total $total ms"

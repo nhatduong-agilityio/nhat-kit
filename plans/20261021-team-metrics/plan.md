@@ -152,8 +152,8 @@ Rejected:
   - `bash plugins/devkit/scripts/pr-size.sh main` in this repo still prints the summary line.
 
 ### Phase 2 — `metrics.sh` skeleton: arguments, auth, PR fetch, sizes (PR A1, foundational)
-- [ ] Write the script's frame and size part from Approach: header (Usage/Output/Exit for the full output, keys from Phase 3 marked as added there), `die`, `ghq`, mktemp and trap, `here=` resolution, `--since` parsing, `gh auth status`, the merged-PR fetch, Python modes `paths` and `report` (period, size, `over_limit`, `prs_truncated`, `capped_items` for files/reviews, the per-PR rows with cycle `-` and `changes_requested`). File: `plugins/devkit/scripts/metrics.sh` (chmod +x).
-- [ ] Add a stub `gh` chosen by `MX_CASE`, routing on `"$1 $2"` plus the `--label`, `--state`, and `--search` values; its contract comment lists every call (the Phase 3 ones are added there). Fixtures come from a small python builder, times in UTC `Z`. Add an `mxck` helper. Failure cases that need a stub `pr-size.sh` copy `metrics.sh` into a temp dir beside the stub (the script resolves `pr-size.sh` from its own directory).
+- [x] Write the script's frame and size part from Approach: header (Usage/Output/Exit for the full output, keys from Phase 3 marked as added there), `die`, `ghq`, mktemp and trap, `here=` resolution, `--since` parsing, `gh auth status`, the merged-PR fetch, Python modes `paths` and `report` (period, size, `over_limit`, `prs_truncated`, `capped_items` for files/reviews, the per-PR rows with cycle `-` and `changes_requested`). File: `plugins/devkit/scripts/metrics.sh` (chmod +x).
+- [x] Add a stub `gh` chosen by `MX_CASE`, routing on `"$1 $2"` plus the `--label`, `--state`, and `--search` values; its contract comment lists every call (the Phase 3 ones are added there). Fixtures come from a small python builder, times in UTC `Z`. Add an `mxck` helper. Failure cases that need a stub `pr-size.sh` copy `metrics.sh` into a temp dir beside the stub (the script resolves `pr-size.sh` from its own directory).
 
   Cases:
   - Two PRs, one with an excluded `package-lock.json` → its lines do not count, and `size_n=2`.
