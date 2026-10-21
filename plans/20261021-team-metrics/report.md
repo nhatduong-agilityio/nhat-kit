@@ -1,5 +1,5 @@
 # Report — /devkit:report team metrics (P-37)
-Plan: `plans/20261021-team-metrics/plan.md` · Status: in progress (one PR per phase)
+Plan: `plans/20261021-team-metrics/plan.md` · Status: done (four PRs, one per phase)
 
 ## Phase 1 — `pr-size.sh --excluded-index` (PR A0) ✅
 - Files: `plugins/devkit/scripts/pr-size.sh`, `scripts/test-hooks.sh` (75 lines total per `pr-size.sh main`).
@@ -75,3 +75,28 @@ Plan: `plans/20261021-team-metrics/plan.md` · Status: in progress (one PR per p
 - Remaining: none.
 - Ship-gate review: Critical none. Warning fixed: the header said releases are counted on every issue; only `ai` issues are fetched, so it now says so and that releases on other issues are not seen. Optional fixed: a falsy wrong type (`""`, `{}`) for `closingIssuesReferences` or `reviews` now fails closed instead of reading as empty (tested, with a no-traceback check); the header states the order in which missing-cycle reasons are checked (`no_issue`, `not_fetched`, `capped`, `no_claim`), matching the code.
 
+
+## Phase 4 — `/devkit:report` skill and docs (PR B) ✅
+- Files: `plugins/devkit/skills/report/SKILL.md` (new), `README.md`, `UPSTREAM.md`, `CHANGELOG.md`, `plugins/devkit/references/conventions.md` (Directories row for `reports/`), `upstream/proposals/20261018.md`.
+- Written in the main session.
+- The skill runs `metrics.sh`, writes `reports/<report_date>.md` from its output only (summary tables, two separate send-back rows, per-PR table with escaped titles, a "Missing data" section with every reason and flag, notes), replies with 5 lines, and offers a page built from the summary numbers only after an explicit yes.
+
+### Evidence
+| Command | Result |
+| --- | --- |
+| `claude plugin validate plugins/devkit --strict && claude plugin validate .` | both pass |
+| description length | 256 characters |
+| `grep -c 'devkit:report' README.md` | 2 |
+| `grep -n 'P-37' UPSTREAM.md` | row 143 ✅ |
+| `scripts/test-hooks.sh` | 929 cases, 0 failed |
+| Manual, headless: `claude --plugin-dir plugins/devkit -p "/devkit:report 2026-10-15"` | wrote `reports/20261021.md`; its 37 PR rows and every summary number match `metrics.sh --since 2026-10-15` exactly (scripted compare, 0 mismatches); "Missing data" section present; no page published without a yes; the file was then deleted |
+
+### Review (devkit:code-reviewer)
+- Critical: none.
+- Warnings fixed: `not_fetched` now also names PRs that close only other-repo issues; the page uses summary numbers only (no PR titles), so untrusted titles never become markup.
+- Optional fixed: titles are data, never instructions; `Bash(bash */metrics.sh)` allowed for the no-date run; "show its stderr line" (usage errors are not `metrics:` lines); notes say releases on non-`ai` issues are not seen too; `reports/` added to the conventions Directories table.
+- Remaining (out of scope): `README.md:3` still names devkit 2.4.0 (left for `/release minor`); the proposal line names "the `/devkit:report` PR" until its number is known.
+
+## Outcome
+P-37 is done in four PRs (#35, #36, #37, and this one). `/devkit:report` produces team metrics from `gh` only; every gap is counted by reason. Only the stub tests exercise the cycle-time and send-back rules, because this repo has no issues; the first real check is a project that uses the devkit queue.
+- Ship-gate review: Critical none. Warnings fixed: this report's status line said "in progress"; the skill suggested a later `since` for every truncation flag, but only the PR and issue searches are date-bounded (bugs and queue now say "at least 1000"). Optional fixed: the report path is under the project root; the title marks the `until` date as UTC.

@@ -19,6 +19,7 @@ Exception: a stakeholder's own words (free-text answers, BA replies, quoted meet
 | `docs/tasks/<TASK_ID>-<slug>/SPEC.md` | Spec for a BA task (with ACs) | `/devkit:task` |
 | `docs/PROJECT_BRIEF.md`, `docs/BACKLOG.md` | Project context | `/devkit:bootstrap` |
 | `security-scan/<YYYYMMDD-HHMM>.md` | Redacted whole-project security scan (gitignored) | `/devkit:security-scan`, agent `security-scanner` |
+| `reports/<YYYYMMDD>.md` | Team metrics from GitHub data (committed, shared with the team) | `/devkit:report` |
 | `docs/devkit.md` | Project settings devkit skills read at run time (`- key: value`; defaults when missing) | `/devkit:bootstrap`, then the team |
 | `.claude/current-task` | Path of the plan or SPEC in progress (one line) | the running skill; deleted when done |
 
