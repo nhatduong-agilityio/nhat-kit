@@ -4,6 +4,10 @@ Follows [Semantic Versioning](https://semver.org): MAJOR when commands are renam
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/ingest.sh` core (P-28, part 1 of 6; draft). Turns one requirements file into a saved source `<out-dir>/<slug>-<ext>.md` with a JSON-quoted YAML provenance header (source, origin, sha256, converted, converter, redacted count, note). Emails and phone numbers are redacted in the body and header values; a file name or folder holding an email or a 9–15 digit number starting with `+` or `0` (any separators, fullwidth digits, other digit groups before it) is shown as `[redacted]`; this may also hide harmless digit runs in names. Names of people are not redacted (best effort). Handles `.md`/`.txt` (UTF-8 passthrough), skips PDF without `pdftotext`, refuses inputs over 50 MB and non-regular files, and never overwrites another source's file (only a byte-identical repo- or cwd-relative origin is reused; same content is `unchanged`; anything else gets `-<sha8>`, then `name-collision`). Writes refuse symlinks and `..` in the out-dir and go through a temp file. `--slug <file>` prints a redacted slug. 224 new test rows. Coming in later parts: docx/pptx/xlsx readers, pandoc and pdftotext, links, and the bootstrap/task wiring.
+
 ## [2.6.0] - 2026-10-21
 
 ### Added
