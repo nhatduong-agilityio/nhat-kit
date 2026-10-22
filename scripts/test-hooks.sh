@@ -1251,6 +1251,112 @@ grep -qF "metrics: gh required" "$out2"; row metrics "gh missing: message" 0 $? 
 
 expect "$notify" 0 "always exits 0" '{"message":"test"}'
 
+# --- ingest: restricted PATH (only python3), so machines with pandoc or pdftotext see the same results
+ing="$root/plugins/devkit/scripts/ingest.sh"; ig="$(mktemp -d)"; trap 'rm -rf "$err" "$tf" "$fx" "$out" "$out2" "$gd" "$psd" "$ig"' EXIT
+mkdir -p "$ig/bin" "$ig/w" "$ig/empty" "$ig/repo/.git" "$ig/repo/docs"; ln -sf "$(python3 -c 'import sys;print(sys.executable)')" "$ig/bin/python3"
+igr() { (cd "$ig/${IGCWD:-w}" && PATH="$ig/bin" python3 -c 'import subprocess as s,sys;sys.exit(s.run(sys.argv[1:],timeout=10).returncode)' /bin/bash "$ing" "$@" >"$out" 2>"$out2"); }
+igk() { # igk <name> <exp exit> <string in stdout or ""> <args...>
+  local n="$1" rc="$2" has="$3" got; shift 3; igr "$@"; got=$?
+  row ingest "$n" "$rc" "$got" 0 "got: $(cat "$out" "$out2")"
+  [ -z "$has" ] || { grep -qF -- "$has" "$out"; row ingest "$n: line" 0 $? 0 "got: $(cat "$out")"; }
+}
+fhas() { grep -qF -- "$3" "$ig/w/$2"; row ingest "$1" 0 $? 0 "missing $3 in $2"; }  # fhas <name> <file> <string>
+fnot() { ! grep -qF -- "$3" "$ig/w/$2"; row ingest "$1" 0 $? 0 "found $3 in $2"; }
+sha() { python3 -c 'import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest())' "$1"; }
+mt() { python3 -c 'import os,sys;print(os.stat(sys.argv[1]).st_mtime_ns)' "$1"; }
+W="$ig/w"; S=out/s; o=$S/srs-md.md
+printf 'Contact a.b@x.vn, +84 912 345 678, 0912345678, 0912 345 678, 0912.345.678, 0912-345-678.\nKeep 2026-10-21 v2.6.0 PROJ-1234 12345678 09123456 091234567890\n' >"$W/srs.md"
+igk "md converts" 0 "out=$S/srs-md.md converter=passthrough status=converted reason=- redacted=6" srs.md $S
+[ "$(wc -l <"$out")" -eq 1 ]; row ingest "stdout is one line" 0 $? 0 "$(cat "$out")"
+grep -qF Contact "$out"; row ingest "stdout has no body text" 1 $? 0 "body leaked"
+fhas "header source" $o 'source: "srs.md"'; fhas "header origin" $o 'origin: "srs.md"'; fhas "header sha256" $o "sha256: \"$(sha "$W/srs.md")\""
+fhas "header converted" $o "converted: \"$(date +%F)\""; fhas "header converter" $o 'converter: "passthrough"'
+fhas "header redacted" $o 'redacted: "6 (emails and phone numbers in the name and body; names of people are not redacted, best effort)"'
+fhas "header note" $o 'note: "Original text, verbatim apart from redaction; not translated."'
+python3 -c 'import hashlib,re,sys
+rx=re.compile(r"(?<![\d.+])0[35789]\d(?:[\s.-]?\d){7}(?!\d|[.-]\d)")
+n=next(i for i in range(10**6) if rx.search(hashlib.sha256(b"h%d\n" % i).hexdigest()))
+open(sys.argv[1],"wb").write(b"h%d\n" % n)' "$W/hexsha.md"
+igk "sha256 that looks like a phone number" 0 "status=converted" hexsha.md $S
+fhas "header sha256 is never redacted" $S/hexsha-md.md "sha256: \"$(sha "$W/hexsha.md")\""
+for v in a.b@x.vn "+84 912" 0912345678, "0912 345" 0912.345 0912-345; do fnot "body redacts $v" $o "$v"; done
+fhas "no false positives" $o "Keep 2026-10-21 v2.6.0 PROJ-1234 12345678 09123456 091234567890"
+printf 'x\n' >"$W/"$'a"b\nc.md'; igk "newline and quote in name" 0 "status=converted" $'a"b\nc.md' $S
+[ "$(wc -l <"$out")" -eq 1 ]; row ingest "name with newline: one line" 0 $? 0 "$(cat "$out")"
+fhas "name is JSON-quoted on one line" "$(cd "$W" && ls $S/a-b-c-md-*.md)" 'source: "a\"b c.md"'
+printf 'one\n' >"$W/CV_0912345678.md"; printf 'two\n' >"$W/CV-0912345678.md"
+igk "CV_ name" 0 "file=[redacted].md out=$S/source-md-" CV_0912345678.md $S; igk "CV- name" 0 "file=[redacted].md out=$S/source-md-" CV-0912345678.md $S
+fhas "CV_ source redacted" $S/source-md-$(sha "$W/CV_0912345678.md" | cut -c1-8).md 'source: "[redacted].md"'
+[ "$(ls "$W/$S" | grep -c '^source-md-')" -eq 2 ]; row ingest "CV names differ by sha8" 0 $? 0 "$(ls "$W/$S")"
+grep -qF 0912345678 "$W/$S"/source-md-*; row ingest "no phone digits under out-dir" 1 $? 0 "phone leaked"
+igk "--slug redacts" 0 "slug=source-" --slug CV_0912345678.md; grep -qF 0912 "$out"; row ingest "--slug has no digits" 1 $? 0 "$(cat "$out")"
+printf 'v\n' >"$W/a.b@x.vn.txt"; igk "email name keeps .txt" 0 "file=[redacted].txt out=$S/source-txt-" a.b@x.vn.txt $S
+grep -qF "converter=passthrough" "$out"; row ingest "email name: passthrough converter" 0 $? 0 "$(cat "$out")"
+printf 'r\n' >"$ig/repo/docs/a.md"; IGCWD=repo igk "repo: converts" 0 "status=converted" docs/a.md o; fhas "origin repo-relative" ../repo/o/a-md.md 'origin: "docs/a.md"'
+mkdir "$W/sub"; printf 'c\n' >"$W/sub/b.md"; igk "no repo: converts" 0 "status=converted" sub/b.md $S; fhas "origin cwd-relative" $S/b-md.md 'origin: "sub/b.md"'
+m1="$(mt "$W/$o")"; igk "rerun is unchanged" 0 "status=unchanged" srs.md $S
+[ "$m1" = "$(mt "$W/$o")" ]; row ingest "rerun keeps mtime" 0 $? 0 "mtime changed"
+printf 'extra\n' >>"$W/srs.md"; igk "changed content: overwritten" 0 "status=converted" srs.md $S; fhas "overwrite wrote new body" $o extra
+printf 'other\n' >"$W/SRS!.md"; igk "other source, same slug" 0 "out=$S/srs-md-" 'SRS!.md' $S; fhas "original kept" $o 'source: "srs.md"'
+printf 'x\n' >"$W/one two three four five six.md"; igk "6-word stem capped at 5" 0 "out=$S/one-two-three-four-five-md.md" "one two three four five six.md" $S
+printf 'x\n' >"$W/日本語.md"; igk "non-ASCII stem" 0 "out=$S/source-" 日本語.md $S
+mkdir "$W/real"; ln -s real "$W/lnk"; igk "symlinked out-dir component" 0 "reason=symlink" srs.md lnk/x
+printf 'keep\n' >"$W/victim"; printf 'l\n' >"$W/lt.md"; ln -s "$W/victim" "$W/$S/lt-md.md"; igk "symlinked target" 0 "reason=symlink" lt.md $S; fhas "symlink target untouched" victim keep
+printf '\377\376x' >"$W/bad.txt"; igk "non-UTF-8 txt" 0 "reason=not-utf8" bad.txt $S
+printf 'p' >"$W/p.png"; igk "png unsupported" 0 "status=skipped reason=unsupported" p.png $S
+printf '%%PDF' >"$W/d.pdf"; igk "pdf without pdftotext" 0 "status=skipped reason=no-pdftotext" d.pdf $S; grep -qF "brew install poppler" "$out2"; row ingest "pdf install hint on stderr" 0 $? 0 "$(cat "$out2")"
+python3 -c 'import sys;open(sys.argv[1],"wb").truncate(51*1024*1024)' "$W/big.md"; igk "over 50 MB refused" 0 "reason=too-large" big.md $S
+nraw() { # nraw <file>: no phone/email part in stdout, --slug or source/origin; redacted >= 1
+  local o; igk "name $1" 0 "" "$1" out/u; grep -q 'redacted=[1-9]' "$out"; row ingest "name $1: counted" 0 $? 0 "$(cat "$out")"
+  o="$(sed -n 's/.* out=\(.*\) converter=.*/\1/p' "$out")"
+  { cat "$out"; [ "$o" = - ] || grep -E '^(source|origin):' "$W/$o"; igr --slug "$1"; cat "$out"; } | grep -qE '0912|345|678|a\.b|x\.vn'; row ingest "name $1: no raw value" 1 $? 0 leaked
+}
+for f in $'0912\342\200\213345678.md' $'0912\357\274\22345678.md' 0912·345·678.md 0912–345–678.md 0912_345_678.md 'CV 0912.345.678' a.b@x.vn; do printf '%s\n' "$f" >"$W/$f"; nraw "$f"; done
+igk "out= redacted" 0 "out=p/[redacted]/srs-md.md" srs.md p/0912345678; igr --slug srs.md; grep -qx slug=srs "$out"; row ingest "--slug plain name: no sha8" 0 $? 0 "$(cat "$out")"
+printf 'z\n' >"$W/"$'a\342\200\213b.md'; igk "zero-width space in name" 0 "file=a b.md" $'a\342\200\213b.md' $S; LC_ALL=C grep -q $'\342\200\213' "$out"; row ingest "zero-width space never printed" 1 $? 0 "$(cat "$out")"
+mkdir "$W/a" "$W/b" "$W/0912·345·678"; printf 'A\n' >"$W/a/srs.md"; printf 'B\n' >"$W/b/srs.md"; printf 'o\n' >"$W/0912·345·678/r.md"
+igk "a/srs.md" 0 "out=out/c/srs-md.md" a/srs.md out/c; igk "b/srs.md: other origin" 0 "out=out/c/srs-md-$(sha "$W/b/srs.md" | cut -c1-8).md" b/srs.md out/c
+fhas "a/srs.md kept" out/c/srs-md.md 'origin: "a/srs.md"'; igk "phone dir" 0 converted 0912·345·678/r.md out/r; fhas "origin dir redacted" "out/r/r-md-$(sha "$W/0912·345·678/r.md" | cut -c1-8).md" 'origin: "[redacted]/r.md"'
+printf 'Call 028 3823 4567 or (028) 3823 4567.\nKeep 2026-10-21 v2.6.0 PROJ-1234 12345678 09123456 091234567890\n' >"$W/ll.md"
+igk "landlines" 0 "redacted=2" ll.md $S; fnot "landline digits gone" $S/ll-md.md 3823; fhas "landline: no false positives" $S/ll-md.md "Keep 2026-10-21 v2.6.0 PROJ-1234 12345678 09123456 091234567890"
+ln -s /dev/zero "$W/z.md"; mkfifo "$W/x.md"; for f in z.md x.md; do igk "$f not regular" 0 reason=not-regular $f $S; igk "--slug $f" 1 "" --slug $f
+  grep -qx "ingest: not-regular" "$out2"; row ingest "--slug $f: stderr reason" 0 $? 0 "$(cat "$out" "$out2")"; done
+printf 'w\n' >"$W/wf.md"; mkdir -p "$W/out/d/wf-md.md" "$W/out/f" "$W/out/n" "$W/out/g" "$ig/elsewhere/sub"; mkfifo "$W/out/f/wf-md.md"
+igk "directory at target" 0 reason=write-failed wf.md out/d; igk "FIFO at target" 0 reason=write-failed wf.md out/f
+printf 'garbage\n' >"$W/out/g/wf-md.md"; igk "garbage header: other source" 0 "out=out/g/wf-md-$(sha "$W/wf.md" | cut -c1-8).md" wf.md out/g
+printf -- '---\norigin: "x"\nsha256: "y"\n---\n' | tee "$W/out/n/wf-md.md" >"$W/out/n/wf-md-$(sha "$W/wf.md" | cut -c1-8).md"; igk "both names taken" 0 reason=name-collision wf.md out/n
+ln -s ../elsewhere/sub "$W/l2"; igk "'..' in out-dir" 0 reason=bad-out-dir srs.md l2/../real2
+[ ! -e "$ig/elsewhere/real2" ] && [ ! -e "$W/real2" ]; row ingest "'..' in out-dir: nothing written" 0 $? 0 written
+for f in nguyen90@163.com.md 'CV a1@2b.vn.md' 'nguyễn@x.vn.md' CV_+84912345678.md 'x_+84-912-345-678.md' 'CV ０９１２３４５６７８.md'; do
+  printf 'e\n' >"$W/$f"; igk "name $f" 0 "file=" "$f" out/e; cp "$out" "$out2"; igr --slug "$f"
+  { cat "$out2" "$out"; ls "$W/out/e"; grep -h '^source:' "$W"/out/e/*; } | grep -qE '163|nguyen|a1-2b|@|849|912|０'; row ingest "name $f: no raw value" 1 $? 0 "$(cat "$out2"; ls "$W/out/e")"; done
+for f in CV_+84912345678_final.md CV_nguyen@x.vn_2024.md nguyen.a@corp.com_cv.txt; do printf 'u\n' >"$W/$f"; igk "name $f" 0 "file=[redacted]" "$f" out/u2; done
+ls "$W/out/u2" | grep -qE '849|nguyen|corp'; row ingest "_-adjacent names: no raw value in out names" 1 $? 0 "$(ls "$W/out/u2")"
+printf 'call +84 912 345 678_ or +84912345678_x, mail **a@x.vn** `b@y.vn` _c@z.vn_ https://user@host.com/p\n' >"$W/us.md"; igk "_-adjacent body" 0 "redacted=6" us.md $S
+printf 'id_+84912345678 end\n' >"$W/ub.md"; igk "_+84 in body" 0 "redacted=1" ub.md $S; fnot "_-adjacent body: no 678" $S/us-md.md 678; fhas "markdown delimiters kept" $S/us-md.md '**[redacted]** `[redacted]`'; fhas "url scheme kept" $S/us-md.md 'https://[redacted]/p'
+printf 'A\n' >"$W/ＣＶ.md"; printf 'B\n' >"$W/CV.md"; igk "fullwidth name" 0 converted ＣＶ.md out/nf; igk "ascii name" 0 "out=out/nf/cv-md.md" CV.md out/nf
+[ "$(ls "$W/out/nf" | wc -l | tr -d ' ')" = 2 ]; row ingest "lookalike names never share a file" 0 $? 0 "$(ls "$W/out/nf")"
+python3 -c 'import base64,os,sys;open(sys.argv[1],"w").write("![x](data:image/png;base64,"+base64.b64encode(os.urandom(150000)).decode()+")\n")' "$W/b64.md"; igk "200 KB base64 line finishes" 0 converted b64.md $S
+for f in 'CV 2024 0912345678.md' CV_Nguyen_0912345678_2024-10-21.md 20241021_0912345678.md 'CV 2024 +84 912 345 678.md' 'v1.2 028 3823 4567.md' 'Hồ sơ nguyễn@x.vn.md' 'CV (028) 3823 4567.md'; do
+  printf 'g\n' >"$W/$f"; igk "name $f" 0 "file=[redacted].md" "$f" out/g2; igr --slug "$f"; grep -q '^slug=source-' "$out"; row ingest "name $f: --slug" 0 $? 0 "$(cat "$out")"; done
+ls "$W/out/g2" | grep -qE '0912|849|3823|nguy'; row ingest "digit-group names: no raw value in out names" 1 $? 0 "$(ls "$W/out/g2")"
+printf 'k\n' >"$W/srs v2.6.0.md"; printf 'k\n' >"$W/PROJ-1234 2026-10-21.md"; igk "version name kept" 0 "file=srs v2.6.0.md" "srs v2.6.0.md" out/g3; igk "ticket and date name kept" 0 "file=PROJ-1234 2026-10-21.md" "PROJ-1234 2026-10-21.md" out/g3
+mkdir -p "$W/c2/+1 234 5678" "$W/c2/[redacted]"; printf 'S\n' >"$W/c2/+1 234 5678/CV.md"; printf 'T\n' >"$W/c2/[redacted]/CV.md"
+igk "redactable folder" 0 converted "c2/+1 234 5678/CV.md" out/c2; igk "literal [redacted] folder" 0 converted "c2/[redacted]/CV.md" out/c2
+[ "$(ls "$W/out/c2" | wc -l | tr -d ' ')" = 2 ]; row ingest "literal [redacted] folder never overwrites" 0 $? 0 "$(ls "$W/out/c2")"
+printf 'Mail nguyễn@x.vn, nguyen90@163.com, call +84912345678 now.\n' >"$W/bc.md"; igk "body corpus" 0 "redacted=3" bc.md $S; fnot "body corpus: no 163" $S/bc-md.md 163
+mkdir -p "$W/c/0912345678" "$W/c/0987654321"; printf 'one\n' >"$W/c/0912345678/CV.md"; printf 'two\n' >"$W/c/0987654321/CV.md"
+igk "phone folder 1" 0 converted c/0912345678/CV.md out/pf; igk "phone folder 2" 0 converted c/0987654321/CV.md out/pf
+[ "$(ls "$W/out/pf" | wc -l | tr -d ' ')" = 2 ]; row ingest "redacted folders never share a file" 0 $? 0 "$(ls "$W/out/pf")"
+mkdir -p "$ig/dl/a" "$ig/dl/b"; printf 'A\n' >"$ig/dl/a/srs.md"; printf 'B\n' >"$ig/dl/b/srs.md"
+igk "outside cwd: a" 0 "out=out/x/srs-md-$(sha "$ig/dl/a/srs.md" | cut -c1-8).md" ../dl/a/srs.md out/x; igk "outside cwd: b" 0 "status=converted" ../dl/b/srs.md out/x
+fhas "outside cwd: a kept" "out/x/srs-md-$(sha "$ig/dl/a/srs.md" | cut -c1-8).md" A; igk "outside cwd: rerun unchanged" 0 status=unchanged ../dl/a/srs.md out/x
+printf 'Price 1.025.000.000 VND, version 1.020.1234.5678, range 025-123-456.\n' >"$W/vnd.md"; igk "amounts" 0 "redacted=0" vnd.md $S
+fhas "amounts kept" $S/vnd-md.md "Price 1.025.000.000 VND, version 1.020.1234.5678, range 025-123-456."
+igk "out= with dotted phone redacted" 0 "out=p/[redacted]/srs-md.md" srs.md "p/0912·345·678"
+igk "no args: usage" 1 ""; igk "one arg: usage" 1 "" srs.md; igk "three args: usage" 1 "" srs.md $S x; igk "--slug alone: usage" 1 "" --slug
+(cd "$W" && PATH="$ig/empty" /bin/bash "$ing" srs.md $S >"$out" 2>"$out2"); row ingest "missing python3 is exit 1" 1 $? 0 "$(cat "$out2")"
+
 echo "$cases cases, $nfail failed, total $total ms"
 [ "$fail" -eq 0 ] && echo "All hooks passed." || echo "Some hooks failed."
 exit "$fail"
