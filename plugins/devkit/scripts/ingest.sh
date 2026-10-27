@@ -5,13 +5,20 @@
 # Output: one line, never any document text:
 #   file=<redacted name> out=<path|-> converter=<id|-> status=converted|unchanged|skipped|failed reason=<code|-> redacted=<N>
 #   --slug prints "slug=<s>"; <s> gets "-<sha8>" (first 8 hex of the content sha256) when redaction changed the stem.
-# Phase 1 handles .md/.txt (UTF-8 passthrough). .pdf is skipped (no-pdftotext; unsupported when pdftotext exists
-# until its converter is wired in). Everything else is skipped (unsupported). Input cap 50 MB (too-large).
+# Handles .md/.txt (UTF-8 passthrough, converter "passthrough") and .docx (stdlib zip+XML reader, converter
+# "stdlib-docx-1"). .pdf is skipped (no-pdftotext; unsupported when pdftotext exists until its converter is wired in).
+# Everything else is skipped (unsupported). Input cap 50 MB (too-large).
+# docx: never extracted to disk; at most 2,000 entries; each part read(20 MB + 1); 100 MB read in total (too-large).
+# The main part comes from the _rels/.rels officeDocument target (else word/document.xml); one leading "/" is the
+# package root (OPC), and a target that is empty or starts with ".." or "/" after posixpath.normpath is bad-ooxml.
+# Every XML part goes through expat first: a DOCTYPE or ENTITY (any encoding) is unsafe-xml, a parse error bad-xml.
+# Output is capped at 5 MB with a truncation note; then the same redaction, header and write path as md/txt.
 # Redaction (best effort): emails and phone numbers in the body and header values, by regex; the header holds the count.
 # A file name or folder with "@" or a 9-15 digit run starting with "+" or "0" (any separators, NFKC-matched) is shown as
 # "[redacted]<.ext>" and slugged "source". Identity: only an origin byte-identical to the raw path is reused or
 # overwritten; anything cleaned, redacted or outside the repo and cwd is written as "<name>-<sha8>.md".
-# Reasons: not-utf8 too-large unsupported no-pdftotext not-regular symlink bad-out-dir name-collision unreadable write-failed.
+# Reasons: not-utf8 not-ooxml bad-ooxml too-many-entries unsafe-xml bad-xml too-large unsupported no-pdftotext
+# not-regular symlink bad-out-dir name-collision unreadable write-failed.
 # Existing target: same sha256 -> unchanged; same origin (repo- or cwd-relative) -> overwritten; another source, or
 # an input outside the repo and cwd (its base name cannot identify it), -> "<name>-<sha8>.md", then
 # name-collision. Out-dir components that are symlinks are refused, and so is any ".." in the out-dir; root-owned
@@ -23,7 +30,8 @@ die() { echo "ingest: $*" >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || die "python3 required"
 
 exec python3 -I -c '
-import sys, os, re, json, stat, errno, shutil, hashlib, tempfile, unicodedata as ud, datetime as dt
+import sys, os, re, io, json, struct, stat, errno, shutil, hashlib, tempfile, zipfile, posixpath, unicodedata as ud, datetime as dt
+import xml.parsers.expat as xp, xml.etree.ElementTree as ET
 def crash(*_): sys.stderr.write("ingest: unexpected error\n"); sys.stderr.flush(); os._exit(1)
 sys.excepthook = crash  # fail closed: one line, no traceback (tracebacks could echo document text)
 def clean(s): return "".join(" " if c.isspace() or ud.category(c)[0] == "C" else c for c in s)
@@ -84,7 +92,7 @@ if not slug_mode:
             sys.stderr.write("ingest: pdftotext missing; install: brew install poppler / apt install poppler-utils\n")
             bail("no-pdftotext", "skipped")
         bail("unsupported", "skipped")  # Phase 4 wires the pdftotext converter
-    if e not in (".md", ".txt"): bail("unsupported", "skipped")
+    if e not in (".md", ".txt", ".docx"): bail("unsupported", "skipped")
 try:
     with os.fdopen(fd, "rb") as f: data = f.read(CAP + 1)
 except OSError: bail("unreadable")
@@ -92,8 +100,93 @@ if len(data) > CAP: bail("too-large")
 sha = hashlib.sha256(data).hexdigest(); sha8 = sha[:8]
 if slug_mode:
     print("slug=" + (sb or "source") + ("-" + sha8 if changed else "")); sys.exit(0)
-try: body = data.decode("utf-8")
-except UnicodeDecodeError: bail("not-utf8")
+class Unsafe(Exception): pass
+def no(*_): raise Unsafe()
+def xml(b):  # expat first: it decodes any encoding (UTF-16 too) before the DOCTYPE/ENTITY handlers see the markup
+    p = xp.ParserCreate(); p.StartDoctypeDeclHandler = p.EntityDeclHandler = no
+    try: p.Parse(b, True)
+    except Unsafe: bail("unsafe-xml")
+    except (xp.ExpatError, ValueError, LookupError): bail("bad-xml")
+    try: return ET.fromstring(b)
+    except ET.ParseError: bail("bad-xml")
+used = [0]
+def part(zf, n):
+    try:
+        with zf.open(n) as f: b = f.read(20 * 2**20 + 1)
+    except Exception: bail("bad-ooxml")  # missing member, corrupt or encrypted data, unknown compression
+    used[0] += len(b)
+    if len(b) > 20 * 2**20 or used[0] > 100 * 2**20: bail("too-large")
+    return xml(b)
+ln = lambda x: x.tag.rsplit("}", 1)[-1]  # local names: transitional and strict namespaces alike
+def val(x, k="val"): return next((v for a, v in x.attrib.items() if a.rsplit("}", 1)[-1] == k), "")
+def num(x, k):
+    v = [val(y) for y in x.iter() if ln(y) == k]
+    return min(int(v[0]), 8) if v and re.fullmatch("[0-9]{1,4}", v[0]) else 0  # bounded: ilvl drives indentation
+def walk(x, stop):  # descendants in document order without recursion; does not enter a match or an mc:Fallback copy
+    st = list(x)[::-1]
+    while st:
+        y = st.pop(); k = ln(y)
+        if k == "Fallback": continue
+        if k in stop: yield y
+        else: st.extend(list(y)[::-1])
+def para(p):  # every run of the paragraph once, nested ones included (linear: no paragraph is walked twice)
+    return "".join({"t": y.text or "", "tab": "\t", "br": "\n", "cr": "\n"}.get(ln(y), "") for r in walk(p, ("r",)) for y in r)
+def cell(c): return " ".join(para(p) for p in walk(c, ("p",))).replace("\n", " ").replace("|", "\\|").strip()
+OCAP = 5 * 2**20  # output cap
+def blocks(el):
+    for c in el:
+        if ln(c) == "p":
+            pr = [y for y in c if ln(y) == "pPr"]; s = [val(y) for y in pr[0].iter() if ln(y) == "pStyle"] if pr else []
+            h = re.match(r"(?i)heading([1-9])$", s[0]) if s else None; t = para(c).strip()
+            lst = pr and [y for y in pr[0] if ln(y) == "numPr"] and num(pr[0], "numId")
+            if not t: continue
+            if h or s and s[0].lower() == "title": yield "#" * (int(h.group(1)) if h else 1) + " " + t
+            elif lst: yield "  " * num(pr[0], "ilvl") + "- " + t
+            else: yield t
+        elif ln(c) == "tbl":
+            rows = [[cell(x) for x in r if ln(x) == "tc"] for r in c if ln(r) == "tr"]; w = max([len(r) for r in rows] or [0])
+            if w:  # pad row by row and stop at the output cap: n short rows x w cells never get built (n*w is quadratic)
+                ls, size = [], 0
+                for r in [rows[0], ["---"] * w] + rows[1:]:
+                    ls.append("| " + " | ".join(r + [""] * (w - len(r))) + " |"); size += len(ls[-1]) + 1
+                    if size > OCAP: break
+                yield "\n".join(ls)
+        elif ln(c) not in ("sectPr", "Fallback"): yield from blocks(c)  # sdt/sdtContent, customXml, ins; one mc copy
+def docx():
+    f = io.BytesIO(data)
+    try: ok = zipfile.is_zipfile(f)
+    except Exception: ok = False  # e.g. a zip64 locator claiming several disks
+    if not ok: bail("not-ooxml")
+    i = data.rfind(b"PK\x05\x06", max(0, len(data) - 65557))  # EOCD: bound entries and directory size before ZipFile
+    if i < 0 or len(data) < i + 22: bail("bad-ooxml")
+    cnt_e, cd = struct.unpack("<HI", data[i + 10:i + 16])
+    if i >= 76 and data[i - 20:i - 16] == b"PK\x06\x07":  # zip64: zipfile takes the counts from the record before the locator
+        if data[i - 76:i - 72] != b"PK\x06\x06" or struct.unpack("<Q", data[i - 12:i - 4])[0] != i - 76: bail("bad-ooxml")
+        cnt_e, cd = struct.unpack("<QQ", data[i - 44:i - 28])
+    if cnt_e > 2000 or cd > 2000 * 1100: bail("too-many-entries")
+    try: zf = zipfile.ZipFile(f); names = zf.namelist()
+    except Exception: bail("bad-ooxml")
+    if len(names) > 2000: bail("too-many-entries")
+    n = "word/document.xml"
+    if "_rels/.rels" in names:
+        for r in part(zf, "_rels/.rels"):
+            if val(r, "Type").endswith("/officeDocument"):
+                t = val(r, "Target"); n = posixpath.normpath(t[1:] if t.startswith("/") else t)
+                if n in ("", ".") or n.startswith(("..", "/")): bail("bad-ooxml")
+                break
+    out, size, cap = [], 0, OCAP
+    try:
+        for b in blocks(part(zf, n)):
+            b = red(b); k = len(b.encode()) + 2  # redact before the cap, so a cut never splits a contact
+            if size + k > cap: out.append(b.encode()[:cap - size].decode("utf-8", "ignore") + "\n\n_[truncated at 5 MB]_"); break
+            out.append(b); size += k
+    except RecursionError: bail("bad-xml")
+    return "\n\n".join(out) + "\n"
+conv = "stdlib-docx-1" if e == ".docx" else "passthrough"
+if e == ".docx": body = docx()
+else:
+    try: body = data.decode("utf-8")
+    except UnicodeDecodeError: bail("not-utf8")
 # origin: repo-relative (a .git entry found walking up from cwd), else cwd-relative, else the base name; never absolute
 real = os.path.realpath(path); root = None; d = cwd
 while True:
@@ -110,15 +203,15 @@ for r in (root, cwd):
 body = red(body)
 q = lambda v, r=True: json.dumps(red(clean(v)) if r else v, ensure_ascii=False)  # r=False: never redact sha/date/converter (hex can look like a phone)
 hdr = ["source: " + q(rname), "origin: " + q(origin), "sha256: " + q(sha, False), "converted: " + q(dt.date.today().isoformat(), False),
-       "converter: " + q("passthrough", False),
+       "converter: " + q(conv, False),
        "redacted: " + json.dumps("%d (emails and phone numbers in the name and body; names of people are not redacted, best effort)" % cnt[0]),
        "note: " + q("Original text, verbatim apart from redaction; not translated.", False)]
 text = "---\n" + "\n".join(hdr) + "\n---\n\n" + body + ("" if body.endswith("\n") else "\n")
 # out-dir: create component by component, refusing symlinks (checked below cwd; elsewhere root-owned links pass)
 ap = os.path.abspath(a[1]); start = cwd if ap == cwd or under(ap, cwd) else os.sep
 cur = start
-for part in [p for p in os.path.relpath(ap, start).split(os.sep) if p and p != "."]:
-    cur = os.path.join(cur, part)
+for comp in [p for p in os.path.relpath(ap, start).split(os.sep) if p and p != "."]:
+    cur = os.path.join(cur, comp)
     try: st = os.lstat(cur)
     except FileNotFoundError:
         try: os.mkdir(cur)
@@ -145,7 +238,7 @@ b = (sb or "source") + "-" + (slug(e) or "file") + ("" if anchored and sb else "
 names = [b + ".md"] + ([b + "-" + sha8 + ".md"] if anchored and sb else [])  # the others already carry -sha8
 for i, n in enumerate(names):
     t = os.path.join(ap, n); ex = existing(t)
-    if ex is not None and ex.get("sha256") == sha: emit(t, "passthrough", "unchanged", "-", rname)
+    if ex is not None and ex.get("sha256") == sha: emit(t, conv, "unchanged", "-", rname)
     if ex is None or (anchored and ex.get("origin") == origin): break  # origin is the identity (repo-relative)
     if i == len(names) - 1: bail("name-collision")
 try:
@@ -156,5 +249,5 @@ try:
     except BaseException:
         os.unlink(tmp); raise
 except OSError: bail("write-failed")
-emit(t, "passthrough", "converted", "-", rname)
+emit(t, conv, "converted", "-", rname)
 ' "$@"
