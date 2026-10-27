@@ -1387,11 +1387,69 @@ dx spec.docx ok; igk "docx converts" 0 "out=$S/spec-docx.md converter=stdlib-doc
 row ingest "docx body: headings, lists, tab, br, table" 0 $? 0 "$(cat "$W/$S/spec-docx.md")"; igk "docx rerun unchanged" 0 "converter=stdlib-docx-1 status=unchanged" spec.docx $S
 for k in dtd:unsafe-xml utf16:unsafe-xml bad:bad-xml many:too-many-entries bomb:too-large evil:bad-ooxml deep:bad-xml xnope:bad-xml eucjp:bad-xml; do dx ${k%:*}.docx ${k%:*}; igk "docx ${k%:*}: ${k#*:}" 0 "status=failed reason=${k#*:}" ${k%:*}.docx $S; cat "$out" "$out2" >>"$ig/all"; done
 dx norels.docx norels; igk "docx without rels: word/document.xml" 0 "status=converted" norels.docx $S
-printf 'not a zip' >"$W/nz.docx"; igk "non-zip docx" 0 "status=failed reason=not-ooxml" nz.docx $S; printf x >"$W/s.pptx"; igk "pptx still unsupported" 0 reason=unsupported s.pptx $S
+ox() { python3 - "$W/$1" "$2" <<'PY'  # pptx / xlsx fixtures: ox <file> <kind>
+import sys, zipfile as Z
+f, k = sys.argv[1:]; N = "http://schemas.openxmlformats.org/"; RL = N + "officeDocument/2006/relationships"; PR = "<Relationships xmlns='%spackage/2006/relationships'>%%s</Relationships>" % N
+rel = lambda i, t, ty="slide": "<Relationship Id='%s' Target='%s' Type='%s/%s'/>" % (i, t, RL, ty)
+z = Z.ZipFile(f, "w", Z.ZIP_DEFLATED); x = f.endswith(".xlsx"); m = "xl/workbook.xml" if x else "ppt/presentation.xml"; d = m.rsplit("/", 1)[0]
+z.writestr("_rels/.rels", PR % rel("r1", "/" + m, "officeDocument")); wr = lambda n, b: z.writestr(n, "<?xml version='1.0'?>" + b if b[:1] == "<" else b)
+if x:
+    S = lambda *c: "<worksheet xmlns='%sspreadsheetml/2006/main'><sheetData>%s</sheetData></worksheet>" % (N, "".join(c)); C = lambda r, v, t="n": "<c r='%s' t='%s'><v>%s</v></c>" % (r, t, v)
+    I = lambda r, v: "<c r='%s' t='inlineStr'><is><t>%s</t></is></c>" % (r, v); rw = lambda n, *c: "<row r='%d'>%s</row>" % (n, "".join(c))
+    sst = ["<si><t>Name</t></si>", "<si><r><t>Ri</t></r><r><t>ch</t></r><rPh><t>PHON</t></rPh></si>", "<si><t>A|B\nC</t></si>", "<si><t>Mail a.b@x.vn</t></si>"]; sh = {"s1": S(rw(1, C("A1", 0, "s"), I("C1", "inl"), C("D1", 1, "b")), rw(3, C("B3", 2, "s"), C("C3", "45123.5"), C("D3", "#N/A", "e"), C("E3", "txt", "str"), C("F3", 0, "b")), rw(4, C("A4", 1, "s"), C("B4", 3, "s"), I("C4", "call 0912 345 678"))), "s2": S(rw(1, I("A1", "Second")))}
+    if k == "rowbad": sh["s1"] = S(rw(1, C("ZZZZZZZ1", 1)))
+    if k == "far": sh["s1"] = S(rw(1, I("A1", "near"), I("XFD1048576", "far")))
+    if k == "col": sh["s1"] = S(rw(1, C("XFE1", 1)))
+    if k == "sidx": sh["s1"] = S(rw(1, C("A1", 4, "s")))
+    L = lambda n: L((n - 1) // 26) + chr(65 + (n - 1) % 26) if n else ""
+    if k == "sbomb": sst = ["<si><t>%s</t></si>" % ("w" * 10**6)]; sh = {"s1": S(rw(1, *[C(L(i) + "1", 0, "s") for i in range(1, 16385)]))}  # 16,384 cells x 1 MB
+    if k == "wide": sh = {"s1": S(*[rw(i, I("A%d" % i, "a"), I("XFD%d" % i, "z")) for i in range(1, 60001)])}  # 60k rows reaching XFD
+    if k == "many": sh = {"s%d" % i: S() + " " * (19 << 20) for i in range(1, 7)}
+    if k == "sheets": sh = {"s1": S(rw(1, I("A1", "one")))}
+    ids = ["s%d" % i for i in range(1, 100001)] if k == "sheets" else list(sh)
+    wr(m, "<workbook xmlns='%sspreadsheetml/2006/main' xmlns:r='%s'><sheets>%s</sheets></workbook>" % (N, RL, "".join("<sheet name='%s' sheetId='%d' r:id='%s'/>" % ("Sheet|%d" % (i + 1) if k == "ok" else "S", i + 1, "rId1" if k == "sheets" else "zz" if k == "norel" else "r" + t) for i, t in enumerate(ids))))
+    wr(d + "/_rels/workbook.xml.rels", PR % ("".join(rel("r" + t, "../x.xml" if k == "evil" else "worksheets/%s.xml" % t, "worksheet") for t in sh) + rel("rs", "../x.xml" if k == "ssevil" else "sharedStrings.xml", "sharedStrings") + (rel("rId1", "worksheets/s1.xml", "worksheet") if k == "sheets" else "")))
+    for t, b in sh.items(): wr("xl/worksheets/%s.xml" % t, b)
+    if k == "evil": z.writestr(d + "/../x.xml", S(rw(1, I("A1", "EVILTEXT"))))
+    if k == "ssevil": z.writestr(d + "/../x.xml", "<sst xmlns='%sspreadsheetml/2006/main'><si><t>EVILTEXT</t></si></sst>" % N)
+    wr("xl/sharedStrings.xml", ("<!DOCTYPE x>" if k == "dtd" else "") + "<sst xmlns='%sspreadsheetml/2006/main'>%s</sst>" % (N, "".join(sst)))
+else:
+    A = "xmlns:a='%sdrawingml/2006/main' xmlns:p='%spresentationml/2006/main'" % (N, N); T = lambda *t: "<p:sp><p:txBody><a:p>%s</a:p></p:txBody></p:sp>" % "".join(t)
+    r = lambda t: "<a:r><a:t>%s</a:t></a:r>" % t; sl = lambda b: "<p:sld %s><p:cSld><p:spTree>%s</p:spTree></p:cSld></p:sld>" % (A, b)
+    tb = "<p:graphicFrame><a:graphic><a:graphicData><a:tbl><a:tr><a:tc><a:txBody><a:p>%s</a:p></a:txBody></a:tc><a:tc><a:txBody><a:p>%s</a:p></a:txBody></a:tc></a:tr><a:tr><a:tc><a:txBody><a:p>%s</a:p></a:txBody></a:tc></a:tr></a:tbl></a:graphicData></a:graphic></p:graphicFrame>" % (r("Key"), r("Va|lue"), r("k1"))
+    sd = {"slide2.xml": sl(T(r("Beta"), "<a:br/>", r("line2 a.b@x.vn")) + tb), "slide1.xml": sl(T(r("Alpha")) + "<mc:AlternateContent xmlns:mc='http://schemas.openxmlformats.org/markup-compatibility/2006'><mc:Fallback>%s</mc:Fallback></mc:AlternateContent>" % T(r("FALLBACK")))}
+    if k == "nolist": sd = {"slide10.xml": sl(T(r("Ten"))), "slide2.xml": sl(T(r("Two")))}
+    if k == "deep": sd = {"slide1.xml": sl("<p:grpSp>" * 30000 + T(r("Deep")) + "</p:grpSp>" * 30000), "slide2.xml": sl("")}
+    lst = "" if k == "nolist" else "<p:sldIdLst><p:sldId id='256' r:id='rA'/><p:sldId id='257' r:id='rB'/></p:sldIdLst>"
+    wr(m, "<p:presentation %s xmlns:r='%s'>%s</p:presentation>" % (A, RL, lst))
+    if k not in ("nolist", "norels"): wr(d + "/_rels/presentation.xml.rels", PR % (rel("rA", "../x.xml" if k == "evil" else "slides/slide2.xml") + rel("rB", "slides/slide1.xml")))
+    for n, b in sd.items(): wr("ppt/slides/" + n, b)
+    wr("ppt/notesSlides/notesSlide1.xml", sl(T(r("NOTESTEXT"))))
+    if k == "evil": z.writestr(d + "/../x.xml", sl(T(r("EVILTEXT"))))  # a member literally named so: only the ".." rule stops it
+z.close()
+PY
+}
+printf 'not a zip' >"$W/nz.docx"; igk "non-zip docx" 0 "status=failed reason=not-ooxml" nz.docx $S
 grep -rqE 'LEAKTEXT|EVILTEXT' "$W/$S" "$ig/all"; row ingest "entity and ../ text never written" 1 $? 0 "$(grep -rlE 'LEAKTEXT|EVILTEXT' "$W/$S")"
 dx pinp.docx pinp; igk "nested paragraphs in a cell finish" 0 status=converted pinp.docx $S; [ "$(grep -o NEST "$W/$S/pinp-docx.md" | wc -l | tr -d ' ')" = 1 ]; row ingest "nested cell text once" 0 $? 0 "$(grep -c NEST "$W/$S/pinp-docx.md")"
 dx mc.docx mc; igk "text box converts" 0 status=converted mc.docx $S; [ "$(grep -o BOXTEXT "$W/$S/mc-docx.md" | wc -l | tr -d ' ')" = 1 ]; row ingest "mc:Fallback copy skipped" 0 $? 0 "$(grep -c BOXTEXT "$W/$S/mc-docx.md")"
 [ "$(grep -o RUNBOX "$W/$S/mc-docx.md" | wc -l | tr -d ' ')" = 1 ]; row ingest "run-level mc:Fallback skipped" 0 $? 0 "$(grep -c RUNBOX "$W/$S/mc-docx.md")"
+ox deck.pptx ok; igk "pptx converts" 0 "out=$S/deck-pptx.md converter=stdlib-pptx-1 status=converted reason=- redacted=1" deck.pptx $S; fhas "pptx header converter" $S/deck-pptx.md 'converter: "stdlib-pptx-1"'
+[ "$(awk 'n>=2{print} /^---$/{n++}' "$W/$S/deck-pptx.md")" = "$(printf '\n## Slide 1\n\nBeta\nline2 [redacted]\n\n| Key | Va\\|lue |\n| --- | --- |\n| k1 |  |\n\n## Slide 2\n\nAlpha')" ]
+row ingest "pptx body: sldIdLst order, br, table, no fallback copy, no notes" 0 $? 0 "$(cat "$W/$S/deck-pptx.md")"
+ox nolist.pptx nolist; igk "pptx without sldIdLst" 0 status=converted nolist.pptx $S; [ "$(grep -v '^[a-z0-9]*:' "$W/$S/nolist-pptx.md" | grep -E 'Slide|Two|Ten' | tr '\n' ' ')" = "## Slide 1 Two ## Slide 2 Ten " ]; row ingest "pptx numeric fallback: 2 before 10" 0 $? 0 "$(cat "$W/$S/nolist-pptx.md")"
+ox evilp.pptx evil; igk "pptx rels .. refused" 0 "status=failed reason=bad-ooxml" evilp.pptx $S; ox evilx.xlsx evil; igk "xlsx rels .. refused" 0 "status=failed reason=bad-ooxml" evilx.xlsx $S
+ox norels.pptx norels; igk "pptx sldId without a rel" 0 "status=failed reason=bad-ooxml" norels.pptx $S
+ox deep.pptx deep; igk "pptx 30k nested groups finish" 0 status=converted deep.pptx $S; fhas "deep text kept" $S/deep-pptx.md Deep
+ox book.xlsx ok; igk "xlsx converts" 0 "out=$S/book-xlsx.md converter=stdlib-xlsx-1 status=converted reason=- redacted=2" book.xlsx $S; fhas "xlsx header converter" $S/book-xlsx.md 'converter: "stdlib-xlsx-1"'
+[ "$(awk 'n>=2{print} /^---$/{n++}' "$W/$S/book-xlsx.md")" = "$(printf '\n### Sheet|1\n\n| Name |  | inl | TRUE |  |  |\n| --- | --- | --- | --- | --- | --- |\n|  | A\\|B C | 45123.5 | #N/A | txt | FALSE |\n| Rich | Mail [redacted] | call [redacted] |  |  |  |\n\n### Sheet|2\n\n| Second |\n| --- |')" ]
+row ingest "xlsx body: sparse cells, rich text, booleans, pipe, 2 sheets" 0 $? 0 "$(cat "$W/$S/book-xlsx.md")"
+fnot "xlsx rPh text excluded" $S/book-xlsx.md PHON
+for k in rowbad:bad-xml col:bad-xml dtd:unsafe-xml sidx:bad-xml many:too-large norel:bad-ooxml ssevil:bad-ooxml; do ox ${k%:*}.xlsx ${k%:*}; igk "xlsx ${k%:*}: ${k#*:}" 0 "status=failed reason=${k#*:}" ${k%:*}.xlsx $S; done
+ox far.xlsx far; igk "xlsx XFD1048576 finishes" 0 status=converted far.xlsx $S; fhas "far cell kept" $S/far-xlsx.md far; [ "$(wc -c <"$W/$S/far-xlsx.md")" -lt 200000 ]; row ingest "far cell: one row, not rows x cols" 0 $? 0 "$(wc -c <"$W/$S/far-xlsx.md")"
+ox wide.xlsx wide; igk "xlsx 60k rows to XFD finish" 0 status=converted wide.xlsx $S; fhas "wide sheet truncated" $S/wide-xlsx.md '_[truncated at 5 MB]_'
+ox sbomb.xlsx sbomb; igk "xlsx shared-string bomb finishes" 0 status=converted sbomb.xlsx $S; fhas "bomb output truncated" $S/sbomb-xlsx.md '_[truncated at 5 MB]_'; [ "$(wc -c <"$W/$S/sbomb-xlsx.md")" -lt 5300000 ]; row ingest "bomb output under 5.3 MB" 0 $? 0 "$(wc -c <"$W/$S/sbomb-xlsx.md")"
+ox sheets.xlsx sheets; igk "xlsx 100k sheets on one part finish" 0 status=converted sheets.xlsx $S
 dx widecd.docx widecd; igk "huge central directory refused before parsing" 0 "reason=too-many-entries" widecd.docx $S
 dx cut.docx cut; igk "email at the 5 MB cut" 0 "status=converted" cut.docx $S; grep -q 'redacted=[1-9]' "$out"; row ingest "email at the cut is counted" 0 $? 0 "$(cat "$out")"; fnot "email at the cut never leaks" $S/cut-docx.md nguyen
 dx z64.docx z64; igk "multi-disk zip64 locator" 0 "status=failed reason=not-ooxml" z64.docx $S

@@ -5,12 +5,15 @@
 # Output: one line, never any document text:
 #   file=<redacted name> out=<path|-> converter=<id|-> status=converted|unchanged|skipped|failed reason=<code|-> redacted=<N>
 #   --slug prints "slug=<s>"; <s> gets "-<sha8>" (first 8 hex of the content sha256) when redaction changed the stem.
-# Handles .md/.txt (UTF-8 passthrough, converter "passthrough") and .docx (stdlib zip+XML reader, converter
-# "stdlib-docx-1"). .pdf is skipped (no-pdftotext; unsupported when pdftotext exists until its converter is wired in).
+# Handles .md/.txt (UTF-8 passthrough, converter "passthrough"), .docx, .pptx and .xlsx (stdlib zip+XML readers,
+# converters "stdlib-docx-1", "stdlib-pptx-1", "stdlib-xlsx-1"). .pdf is skipped (no-pdftotext; unsupported when pdftotext exists until its converter is wired in).
 # Everything else is skipped (unsupported). Input cap 50 MB (too-large).
-# docx: never extracted to disk; at most 2,000 entries; each part read(20 MB + 1); 100 MB read in total (too-large).
-# The main part comes from the _rels/.rels officeDocument target (else word/document.xml); one leading "/" is the
-# package root (OPC), and a target that is empty or starts with ".." or "/" after posixpath.normpath is bad-ooxml.
+# docx/pptx/xlsx: never extracted to disk; at most 2,000 entries; each part read(20 MB + 1); 100 MB read in total (too-large).
+# The main part comes from the _rels/.rels officeDocument target (else word/document.xml, ppt/presentation.xml,
+# xl/workbook.xml); one leading "/" is the package root (OPC), and a target that is empty or starts with ".." or "/"
+# after posixpath.normpath is bad-ooxml (slide, sheet and sharedStrings targets too).
+# pptx: "## Slide N" per slide in p:sldIdLst order (else by slide number), paragraphs and a:tbl tables, no notes.
+# xlsx: "### <sheet>" and a pipe table per sheet; cells placed by column letters (beyond XFD or a bad ref: bad-xml).
 # Every XML part goes through expat first: a DOCTYPE or ENTITY (any encoding) is unsafe-xml, a parse error bad-xml.
 # Output is capped at 5 MB with a truncation note; then the same redaction, header and write path as md/txt.
 # Redaction (best effort): emails and phone numbers in the body and header values, by regex; the header holds the count.
@@ -30,7 +33,7 @@ die() { echo "ingest: $*" >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || die "python3 required"
 
 exec python3 -I -c '
-import sys, os, re, io, json, struct, stat, errno, shutil, hashlib, tempfile, zipfile, posixpath, unicodedata as ud, datetime as dt
+import sys, os, re, io, itertools, json, struct, stat, errno, shutil, hashlib, tempfile, zipfile, posixpath, unicodedata as ud, datetime as dt
 import xml.parsers.expat as xp, xml.etree.ElementTree as ET
 def crash(*_): sys.stderr.write("ingest: unexpected error\n"); sys.stderr.flush(); os._exit(1)
 sys.excepthook = crash  # fail closed: one line, no traceback (tracebacks could echo document text)
@@ -92,7 +95,7 @@ if not slug_mode:
             sys.stderr.write("ingest: pdftotext missing; install: brew install poppler / apt install poppler-utils\n")
             bail("no-pdftotext", "skipped")
         bail("unsupported", "skipped")  # Phase 4 wires the pdftotext converter
-    if e not in (".md", ".txt", ".docx"): bail("unsupported", "skipped")
+    if e not in (".md", ".txt") and e not in (".docx", ".pptx", ".xlsx"): bail("unsupported", "skipped")
 try:
     with os.fdopen(fd, "rb") as f: data = f.read(CAP + 1)
 except OSError: bail("unreadable")
@@ -131,8 +134,23 @@ def walk(x, stop):  # descendants in document order without recursion; does not 
         else: st.extend(list(y)[::-1])
 def para(p):  # every run of the paragraph once, nested ones included (linear: no paragraph is walked twice)
     return "".join({"t": y.text or "", "tab": "\t", "br": "\n", "cr": "\n"}.get(ln(y), "") for r in walk(p, ("r",)) for y in r)
-def cell(c): return " ".join(para(p) for p in walk(c, ("p",))).replace("\n", " ").replace("|", "\\|").strip()
+def esc(s): return s.replace("\r", " ").replace("\n", " ").replace("|", "\\|").strip()  # one table cell: one line, no bare pipe
+def cell(c, f=para): return esc(" ".join(f(p) for p in walk(c, ("p",))))
 OCAP = 5 * 2**20  # output cap
+def table(rows, w):  # pipe table; rows is any iterable of lists (first = header), w the width; pads row by row, stops at OCAP
+    ls, size, rows = [], 0, iter(rows); h = next(rows, None)
+    if h is None or not w: return ""
+    for r in itertools.chain([h, ["---"] * w], rows):  # n short rows x w cells are never built: n*w is quadratic
+        cs, n = [], 0
+        for i in range(w):
+            x = r[i] if i < len(r) else ""; cs.append(x); n += len(x) + 3
+            if n > OCAP - size: break  # one row of huge shared cells never gets joined in full
+        ls.append("| " + " | ".join(cs) + " |"); size += len(ls[-1]) + 1
+        if size > OCAP: break
+    return "\n".join(ls)
+def grid(t, f):  # a:tbl / w:tbl: rows of cells
+    rows = [[cell(x, f) for x in r if ln(x) == "tc"] for r in t if ln(r) == "tr"]
+    return table(rows, max([len(r) for r in rows] or [0]))
 def blocks(el):
     for c in el:
         if ln(c) == "p":
@@ -144,15 +162,17 @@ def blocks(el):
             elif lst: yield "  " * num(pr[0], "ilvl") + "- " + t
             else: yield t
         elif ln(c) == "tbl":
-            rows = [[cell(x) for x in r if ln(x) == "tc"] for r in c if ln(r) == "tr"]; w = max([len(r) for r in rows] or [0])
-            if w:  # pad row by row and stop at the output cap: n short rows x w cells never get built (n*w is quadratic)
-                ls, size = [], 0
-                for r in [rows[0], ["---"] * w] + rows[1:]:
-                    ls.append("| " + " | ".join(r + [""] * (w - len(r))) + " |"); size += len(ls[-1]) + 1
-                    if size > OCAP: break
-                yield "\n".join(ls)
+            t = grid(c, para)
+            if t: yield t
         elif ln(c) not in ("sectPr", "Fallback"): yield from blocks(c)  # sdt/sdtContent, customXml, ins; one mc copy
-def docx():
+def resolve(t, base=""):  # an OPC target: one leading "/" is the package root; empty, ".." or "/" after normpath is bad-ooxml
+    n = posixpath.normpath(t[1:] if t.startswith("/") else t)
+    if n in ("", ".") or n.startswith(("..", "/")): bail("bad-ooxml")
+    return n if t.startswith("/") else posixpath.join(base, n)
+def rels(zf, names, p): return [(val(r, "Type"), val(r, "Target"), val(r, "Id")) for r in part(zf, p)] if p in names else []
+def rid(x): return next((v for k, v in x.attrib.items() if k.endswith("}id")), "")  # r:id, not the plain id attribute
+def relsof(main): return posixpath.join(posixpath.dirname(main), "_rels", posixpath.basename(main) + ".rels")
+def opc(default):  # open the package: zip checks, entry caps, main part through the officeDocument rel
     f = io.BytesIO(data)
     try: ok = zipfile.is_zipfile(f)
     except Exception: ok = False  # e.g. a zip64 locator claiming several disks
@@ -167,23 +187,76 @@ def docx():
     try: zf = zipfile.ZipFile(f); names = zf.namelist()
     except Exception: bail("bad-ooxml")
     if len(names) > 2000: bail("too-many-entries")
-    n = "word/document.xml"
-    if "_rels/.rels" in names:
-        for r in part(zf, "_rels/.rels"):
-            if val(r, "Type").endswith("/officeDocument"):
-                t = val(r, "Target"); n = posixpath.normpath(t[1:] if t.startswith("/") else t)
-                if n in ("", ".") or n.startswith(("..", "/")): bail("bad-ooxml")
-                break
-    out, size, cap = [], 0, OCAP
+    n = default
+    for ty, t, _ in rels(zf, names, "_rels/.rels"):
+        if ty.endswith("/officeDocument"): n = resolve(t); break
+    return zf, names, n
+def docx():
+    zf, names, n = opc("word/document.xml")
+    return blocks(part(zf, n))
+def ap(p):  # DrawingML paragraph: a:t inside runs and fields, a:br is a line break
+    return "".join("\n" if ln(y) == "br" else "".join(t.text or "" for t in y if ln(t) == "t") for y in p if ln(y) in ("r", "fld", "br"))
+def pptx():
+    zf, names, main = opc("ppt/presentation.xml"); d = posixpath.dirname(main)
+    ids = [rid(s) for l in part(zf, main) if ln(l) == "sldIdLst" for s in l if ln(s) == "sldId"]
+    if ids:  # presentation order, through the rels
+        m = {i: t for _, t, i in rels(zf, names, relsof(main))}
+        if any(i not in m for i in ids): bail("bad-ooxml")
+        slides = [resolve(m[i], d) for i in ids]
+    else:  # no sldIdLst: by slide number
+        rx = re.compile(re.escape(posixpath.join(d, "slides", "slide")) + "([0-9]{1,9})[.]xml")
+        slides = [n for _, n in sorted((int(g.group(1)), n) for n in names for g in [rx.fullmatch(n)] if g)]
+    for k, n in enumerate(slides, 1):
+        yield "## Slide %d" % k
+        for c in walk(part(zf, n), ("p", "tbl")):
+            t = grid(c, ap) if ln(c) == "tbl" else ap(c).strip()
+            if t: yield t
+def sitext(x): return "".join(t.text or "" for t in walk(x, ("t", "rPh")) if ln(t) == "t")  # phonetic runs (rPh) are not text
+def sheet(root):  # {row: {col: text}} from sheetData; each ref is validated before anything is allocated
+    rows, rn = {}, 0
+    for r in (r for sd in root if ln(sd) == "sheetData" for r in sd if ln(r) == "row"):
+        x = r.get("r", ""); rn = int(x) if re.fullmatch("[0-9]{1,7}", x) else rn + 1; cn = 0
+        for c in (c for c in r if ln(c) == "c"):
+            cn += 1; ref = c.get("r")
+            if ref is not None:
+                g = re.fullmatch("([A-Z]{1,3})([0-9]{1,7})", ref)
+                if not g: bail("bad-xml")
+                cn = 0; rn = int(g.group(2))
+                for ch in g.group(1): cn = cn * 26 + ord(ch) - 64
+            if not 1 <= cn <= 16384 or not 1 <= rn <= 1048576: bail("bad-xml")  # XFD / 1,048,576 rows
+            t = c.get("t", "n"); v = next((y.text or "" for y in c if ln(y) == "v"), "").strip()
+            if t == "s":
+                if not re.fullmatch("[0-9]{1,9}", v) or int(v) >= len(sst): bail("bad-xml")
+                x = sst[int(v)]
+            elif t == "inlineStr": x = esc("".join(sitext(y) for y in c if ln(y) == "is"))
+            elif t == "b": x = {"0": "FALSE", "1": "TRUE"}.get(v, esc(v))
+            else: x = esc(v)  # str, e, n and dates stay as written
+            if x: rows.setdefault(rn, {})[cn] = x
+    return rows
+sst = []
+def xlsx():
+    zf, names, main = opc("xl/workbook.xml"); d = posixpath.dirname(main)
+    rl = rels(zf, names, relsof(main)); m = {i: t for _, t, i in rl}
+    ss = next((resolve(t, d) for ty, t, _ in rl if ty.endswith("/sharedStrings")), posixpath.join(d, "sharedStrings.xml"))
+    if ss in names: sst[:] = [esc(sitext(si)) for si in part(zf, ss) if ln(si) == "si"]
+    sh = [(clean(val(s, "name")), rid(s)) for l in part(zf, main) if ln(l) == "sheets" for s in l if ln(s) == "sheet"]
+    if any(i not in m for _, i in sh): bail("bad-ooxml")
+    for nm, i in sh:  # a sheet listed many times is read many times, but every read counts toward the 100 MB total
+        yield "### " + nm; rows = sheet(part(zf, resolve(m[i], d)))
+        t = table(([r.get(c, "") for c in range(1, max(r) + 1)] for r in (rows[k] for k in sorted(rows))), max([max(r) for r in rows.values()] or [0]))
+        if t: yield t
+def render(read):  # redact each block before measuring and cutting, so a cut never splits a contact
+    out, size = [], 0
     try:
-        for b in blocks(part(zf, n)):
-            b = red(b); k = len(b.encode()) + 2  # redact before the cap, so a cut never splits a contact
-            if size + k > cap: out.append(b.encode()[:cap - size].decode("utf-8", "ignore") + "\n\n_[truncated at 5 MB]_"); break
+        for b in read():
+            b = red(b); k = len(b.encode()) + 2
+            if size + k > OCAP: out.append(b.encode()[:OCAP - size].decode("utf-8", "ignore") + "\n\n_[truncated at 5 MB]_"); break
             out.append(b); size += k
     except RecursionError: bail("bad-xml")
     return "\n\n".join(out) + "\n"
-conv = "stdlib-docx-1" if e == ".docx" else "passthrough"
-if e == ".docx": body = docx()
+rd = {".docx": docx, ".pptx": pptx, ".xlsx": xlsx}
+conv = "stdlib-%s-1" % e[1:] if e in rd else "passthrough"
+if e in rd: body = render(rd[e])
 else:
     try: body = data.decode("utf-8")
     except UnicodeDecodeError: bail("not-utf8")

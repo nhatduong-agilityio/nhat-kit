@@ -42,3 +42,22 @@ Plan: `plans/20261021-requirements-ingestion/plan.md` · Status: in progress (on
 - Confirmation round Critical fixed: table padding to the widest row was quadratic (one row of n cells plus n empty rows; a 529-byte docx took 20 s and 1 GB) → rows are padded one at a time and the table stops at the output cap; a 100k × 100k empty table now converts in under a second and is truncated with the note. Both fixes have rows that fail when reverted.
 - Suggestions applied: `mc:Fallback` copies skipped (block and run level); converter id documented as `stdlib-docx-1` in the plan; ElementTree memory noted in Risks; the loop variable `part` renamed.
 - Final confirmation (gate 6): Critical 0, Warning 0. Suggestion applied: the zip64 locator's record offset must equal the record position (EOCD − 76), else `bad-ooxml`. Not applied: the test wrapper's timeout can leave a python grandchild running after a hang (test hygiene only).
+
+## Phase 3 — pptx and xlsx readers (PR 3) ✅
+- Files: `plugins/devkit/scripts/ingest.sh`, `scripts/test-hooks.sh`, `CHANGELOG.md`. ~200 lines vs `main`.
+- Implemented by `devkit:fullstack-developer` (default tier); the main session added two guard rows after review.
+- Shared helpers factored out of the docx code (`opc`, `resolve`, `rels`, `rid`, `table`, `grid`, `esc`, `render`); docx rows pass unchanged. pptx (`stdlib-pptx-1`): slide order from `sldIdLst` via the presentation rels (numeric fallback), `## Slide N`, `a:br`, tables, no notes. xlsx (`stdlib-xlsx-1`): sheets via the workbook rels, shared strings read eagerly (`rPh` excluded), cell refs validated and range-checked before any allocation, sparse rows, `### <sheet>` + pipe table, booleans TRUE/FALSE, dates raw.
+
+### Evidence
+| Command | Result |
+| --- | --- |
+| `scripts/test-hooks.sh` | 1254 cases, 0 failed |
+| `bash plugins/devkit/scripts/pr-size.sh main` | `status=ok` |
+| Crafted files (reviewer, `/usr/bin/time -l`) | 1.1M sheets on one part 10.5 s / 580 MB; 1M slides 4.4 s; 16,384-cell rows over 19 MB 1.7 s; 5 × 19 MB sheets 13.6 s; one sheet listed 6 × → too-large; 600k rows + XFD1048576 2.6 s; 2.5M-deep groups 1.35 s / 1.19 GB (same as docx). All rc 0, empty stderr |
+| Malformed documents (19 reviewer cases) | all status line + exit 0 |
+| Mutation checks | developer: 15 rules each fail their rows; main session: the sheet-rel guard (`norel`) and the sharedStrings `..` rule (`ssevil`) |
+
+### Review (devkit:code-reviewer, against the written bar)
+- Critical: none.
+- Warnings 1–2 fixed with rows (sheet `r:id` without a rel; sharedStrings target with `..`). Warnings 3–4 (no rows for r-less cells/rows and for escaping inline/`str` values and the sheet name) recorded as follow-ups: no leak, only table shape. Warning 5 (numeric phone columns) and Suggestions 2–4 recorded in plan Risks.
+

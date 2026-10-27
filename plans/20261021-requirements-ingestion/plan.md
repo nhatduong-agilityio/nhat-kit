@@ -213,13 +213,13 @@ Stacked PRs, one per phase. Each is measured with `pr-size.sh <previous phase br
 - Verify: `scripts/test-hooks.sh` ends in "All hooks passed.", and `bash plugins/devkit/scripts/pr-size.sh <phase-1 branch>` exits 0.
 
 ### Phase 3 — pptx and xlsx readers (~160: script ~95, tests ~65)
-- [ ] pptx: slide order from `p:sldIdLst` through the presentation rels (numeric fallback), `## Slide N`, `a:br`, `a:tbl`. No speaker notes. File: `plugins/devkit/scripts/ingest.sh`
-- [ ] xlsx: sheets through the workbook rels, then cell values.
+- [x] pptx: slide order from `p:sldIdLst` through the presentation rels (numeric fallback), `## Slide N`, `a:br`, `a:tbl`. No speaker notes. File: `plugins/devkit/scripts/ingest.sh`
+- [x] xlsx: sheets through the workbook rels, then cell values.
   - Value types: shared strings (all `t` text), `inlineStr`, `str`/`b`/`e`/`n`.
   - Cells are placed by column letters, sparse; a column beyond `XFD` gives `bad-xml`.
   - Each sheet is a `### <sheet>` heading plus a pipe table, with `|` escaped. Dates stay raw.
   - File: `plugins/devkit/scripts/ingest.sh`
-- [ ] Rows. File: `scripts/test-hooks.sh`
+- [x] Rows. File: `scripts/test-hooks.sh`
   - pptx with 2 slides stored out of order
   - xlsx with shared and inline strings, sparse cells, 2 sheets, and `|` in a cell
   - `r="ZZZZZZZ1"` gives `bad-xml` quickly
@@ -304,6 +304,9 @@ Stacked PRs, one per phase. Each is measured with `pr-size.sh <previous phase br
 | Names are over-redacted: any digit run of 9–15 digits starting with `0` or `+` in a file name or folder hides the whole stem (e.g. `v1.0 20241021.md`) | A harmless name shows as `[redacted]` | Accepted: names need no fidelity; the header `sha256` still ties the source to its original |
 | Origin is relative to the nearest `.git` above the cwd; nested repos with an absolute out-dir could give two files one origin | Contrived | Skills run from the project root; noted |
 | ElementTree memory on large parts (a 19 MB part of tiny elements reaches ~700 MB RSS) | Slow or memory-heavy run on a huge docx | Linear and bounded by the 20 MB part and 50 MB input caps; accepted |
+| xlsx phone columns stored as numbers lose the leading 0 (`912345678`, `8.4912345678E+10`) and are not redacted | A number column in a source diff | Best effort (not a corpus format); review sources before the first commit |
+| xlsx/pptx can take ~14 s and ~0.6 GB on crafted files within the 100 MB read cap (rereads of one part, 5 × 19 MB sheets); deep nesting peaks ~1.2 GB as for docx | Slow run | Linear and bounded; a cap on rereads of one part name is a possible later optimisation |
+| A legal part-relative target such as `../ppt/slides/slide1.xml` is refused (`resolve()` normalizes before joining) | `bad-ooxml` on an unusual but valid file | Fails safe; rare |
 | Redaction false positives damage requirements | `[redacted]` where a number belongs | 10-digit VN mobile with lookarounds, 9–15 digits for others; negative rows |
 | A scaffolder commits `docs/requirements/` on its own | The `git log -- docs/requirements` check prints a commit | Bootstrap stops and tells the user. Not seen in practice (assumption) |
 | WebFetch text left unredacted in the scratch dir | `devkit-ingest.*` left in `$TMPDIR` after a failure | 0700 dir outside the repo, deleted by `--webfetch`; strict guard so nothing else is deleted |
