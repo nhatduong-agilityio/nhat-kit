@@ -12,7 +12,7 @@
 #                            returns 1 and has no quote, backslash, < or paren is
 #                            skipped without parsing. Lines over 16 KB are skipped.
 # Library state and helpers are prefixed _seg_; a hook must not use that prefix.
-# The caller should strip \r and set LC_ALL=C (byte-wise indexing is much faster).
+# scan_segments strips \r itself and indexes bytes (LC_ALL=C), so "--admin\r" is "--admin". Safe under set -u.
 #
 # A guardrail, not a sandbox. Not inspected: quoted command strings (bash -c "...",
 # eval), aliases, functions, scripts, variable expansion ($CMD), process substitution <( ).
@@ -33,7 +33,7 @@ _seg_flush_word() {
 _seg_end_segment() {
   _seg_flush_word
   _seg_drop_next=0
-  [ "${#_seg_words[@]}" -gt 0 ] && check_segment "${_seg_words[@]}"
+  [ "${#_seg_words[@]}" -gt 0 ] && check_segment ${_seg_words[@]+"${_seg_words[@]}"}
   _seg_words=()
 }
 _seg_start_redirect() {   # drop an fd number written right before the operator (2>), then the target
@@ -47,7 +47,7 @@ _seg_enter_sub() {        # at $(: the substitution's commands form their own se
   case "$_seg_ctx" in
     *S*) _seg_end_segment ;;
     *)
-      _seg_saved_words=("${_seg_words[@]}")
+      _seg_saved_words=(${_seg_words[@]+"${_seg_words[@]}"})
       _seg_saved_word="$_seg_word"
       _seg_words=()
       _seg_word=''
@@ -63,14 +63,16 @@ _seg_leave_sub() {        # at the ) closing $(: its output becomes part of the 
   case "$_seg_ctx" in
     *S*) ;;
     *)
-      _seg_words=("${_seg_saved_words[@]}")
+      _seg_words=(${_seg_saved_words[@]+"${_seg_saved_words[@]}"})
       _seg_word="$_seg_saved_word"
       _seg_inword=1
       ;;
   esac
 }
 
-scan_segments() { # scan_segments <command string>
+scan_segments() { # scan_segments <command string>; strips \r and indexes bytes (LC_ALL=C) itself
+  local LC_ALL=C
+  set -- "${1//$'\r'/}"
   local _seg_words _seg_saved_words _seg_word='' _seg_saved_word='' _seg_inword=0
   local _seg_sq=''            # "'" inside '...', "\$" inside $'...' (neither nests anything)
   local _seg_ctx=''           # context stack, innermost last

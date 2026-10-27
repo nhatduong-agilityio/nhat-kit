@@ -1466,7 +1466,7 @@ lib="$root/plugins/devkit/scripts/shell-segments.sh"
 cat >"$sg/dump.sh" <<EOF
 . "$lib"
 mode=\$1
-check_segment() { local IFS='|' i=7; printf '%s\n' "\$*"; }
+check_segment() { local IFS='|'; printf '%s\n' "\$*"; i=99 line=x c=';' ctx=S words=(zz) word=q; }  # clobbers plain globals
 line_relevant() {
   case "\$mode:\$1" in all:*|needle:*zz*|git:*git*|git:*gh*) return 0 ;; esac
   return 1
@@ -1495,23 +1495,26 @@ sgk "(( )) arithmetic" all 'a $((1+2)) b; (( x )) c; d' $'a||b\nc\nd'
 sgk "all mode dumps every line" all $'foo\nzz bar' $'foo\nzz|bar'
 sgk "needle mode skips irrelevant line" needle $'foo a\nzz bar\nq && r' 'zz|bar'
 sgk "needle mode still tracks a quote" needle $'echo "a\nb" x\nzz y' $'echo|a\nb|x\nzz|y'
-sgk "callback local i leaves scan intact" all 'a b; c d' $'a|b\nc|d'
+sgk "callback globals leave scan intact" all 'a b; c d; (e "f g")' $'a|b\nc|d\ne|f g'
+sgk "CR stripped by the library" all $'gh pr merge 1 --admin\r' 'gh|pr|merge|1|--admin'
+r="$(bash -uc ". '$lib'; check_segment() { :; }; line_relevant() { return 0; }; scan_segments '\$(a) b'; echo ok" 2>&1)"; [ "$r" = ok ]; row shell-segments "safe under set -u" 0 $? 0 "got: $r"
 sgk "line over 16 KB skipped" all "$(printf 'before\n'; printf 'echo %17000s; hit\n' x; printf 'after\n')" $'before\nafter'
 sgk "empty command" all '' ''
 # Parity: run every single bash_cmd row of the push corpus through the tokenizer still inside
-# block-force-push.sh (lines 138-325, check_segment swapped for a dump) and the library.
+# block-force-push.sh (from "# Split the command" to its done line, check_segment swapped for a dump) and the
+# library. Phase 3 of P-45 moves block-force-push.sh onto the library; replace this row with a snapshot then.
 { printf 'here=%q\n' "$sg"; cat <<'EOF'
 check_segment() { local IFS='|'; printf '%s\n' "$*"; }
 cmd="${1//$'\r'/}"
 EOF
-sed -n '138,325p' "$root/plugins/devkit/scripts/block-force-push.sh"; } >"$sg/ref.sh"
+sed -n '/^# Split the command/,/^done <<< "\$cmd"/p' "$root/plugins/devkit/scripts/block-force-push.sh"; } >"$sg/ref.sh"
 bash_cmd() { printf '%s\0' "$2"; }
 eval "$(sed -n '/^bash_cmd [02] /,/^expect "\$push" 0 "push: empty input/p' "$root/scripts/test-hooks.sh" | sed '$d')" >"$sg/corpus"
 sgn=0; sgbad=''
 while IFS= read -r -d '' c; do
   sgn=$((sgn + 1))
   a="$(bash "$sg/ref.sh" "$c" 2>&1; echo end)"
-  b="$(bash "$sg/dump.sh" git "${c//$'\r'/}" 2>&1)"
+  b="$(bash "$sg/dump.sh" git "$c" 2>&1)"
   [ "$a" = "$b" ] || sgbad="$sgbad [$c]"
 done <"$sg/corpus"
 [ "$sgn" -gt 90 ] && [ -z "$sgbad" ]; row shell-segments "parity: $sgn push corpus commands" 0 $? 0 "differs:$sgbad"
