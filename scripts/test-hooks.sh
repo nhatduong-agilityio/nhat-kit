@@ -1354,6 +1354,51 @@ fhas "outside cwd: a kept" "out/x/srs-md-$(sha "$ig/dl/a/srs.md" | cut -c1-8).md
 printf 'Price 1.025.000.000 VND, version 1.020.1234.5678, range 025-123-456.\n' >"$W/vnd.md"; igk "amounts" 0 "redacted=0" vnd.md $S
 fhas "amounts kept" $S/vnd-md.md "Price 1.025.000.000 VND, version 1.020.1234.5678, range 025-123-456."
 igk "out= with dotted phone redacted" 0 "out=p/[redacted]/srs-md.md" srs.md "p/0912·345·678"
+dx() { python3 - "$W/$1" "$2" <<'PY'
+import sys, zipfile as Z
+f, k = sys.argv[1:]; R = lambda t: "<w:r><w:t xml:space='preserve'>%s</w:t></w:r>" % t; P = lambda b, pr="": "<w:p><w:pPr>%s</w:pPr>%s</w:p>" % (pr, b)
+sty = lambda s: "<w:pStyle w:val='%s'/>" % s; li = lambda l: "<w:numPr><w:ilvl w:val='%d'/><w:numId w:val='1'/></w:numPr>" % l; T = "<w:tabs><w:tab w:val='left' w:pos='720'/></w:tabs>"; tc = lambda *r: "<w:tc>%s</w:tc>" % "".join(P(x, T) for x in r)
+b = (P(R("Spec"), sty("Title")) + P(R("Scope"), sty("Heading2") + T) + P(R("one"), li(0)) + P(R("two"), li(1)) + P(R("deep"), li(9999))
+  + "<w:sdt><w:sdtContent>%s</w:sdtContent></w:sdt>" % P(R("a") + "<w:r><w:tab/><w:t>b</w:t><w:br/><w:t>c</w:t></w:r>") + P(R("Mail a.b@x.vn or 0912 ") + R("345 678") + "<w:del><w:r><w:delText>GONE</w:delText></w:r></w:del>")
+  + "<w:tbl><w:tr>%s%s</w:tr><w:tr>%s%s</w:tr></w:tbl>" % (tc(R("Key")), tc(R("Va|lue")), tc(R("k1"), R("k2")), tc(R("p1") + "<w:r><w:br/><w:t>p2</w:t></w:r>")))
+fill = P(R("x" * 998)) * 5242 + P(R("y" * 868))  # blocks cost len+2: 5,242,870 bytes, so the cap cuts 10 bytes into the email
+mc = "<mc:AlternateContent xmlns:mc='http://schemas.openxmlformats.org/markup-compatibility/2006'><mc:Choice>%s</mc:Choice><mc:Fallback>%s</mc:Fallback></mc:AlternateContent>" % ((P(R("BOXTEXT")),) * 2) + "<w:p><mc:AlternateContent xmlns:mc='http://schemas.openxmlformats.org/markup-compatibility/2006'><mc:Choice>%s</mc:Choice><mc:Fallback>%s</mc:Fallback></mc:AlternateContent></w:p>" % ((R("RUNBOX"),) * 2)
+b = ("<w:tbl><w:tr><w:tc>" + "<w:p>" * 20000 + R("NEST") + "</w:p>" * 20000 + "</w:tc></w:tr></w:tbl>" if k == "pinp" else fill + P(R("nguyen.van.a@company.com tail")) if k == "cut"
+  else mc if k == "mc" else "<w:tbl><w:tr>" + "<w:tc/>" * 100000 + "</w:tr>" + "<w:tr/>" * 100000 + "</w:tbl>" if k == "grid" else b)
+b = "<w:sdt>" * 3000 + "</w:sdt>" * 3000 if k == "deep" else P(R("word " * 200)) * 6000 if k == "big" else P(R("&e;")) if k == "utf16" else b
+d = "<?xml version='1.0' encoding='%s'?>%s<w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'><w:body>%s<w:sectPr/></w:body></w:document>" % (
+  {"utf16": "UTF-16", "xnope": "x-nope", "eucjp": "euc-jp"}.get(k, "UTF-8"), {"dtd": "<!DOCTYPE x>", "utf16": "<!DOCTYPE x [<!ENTITY e 'LEAKTEXT'>]>"}.get(k, ""), b)
+if k == "z64big":  # a real docx whose zip64 record (before a zip64 locator) claims 1,000,000 entries
+    import io, struct; m = io.BytesIO(); z = Z.ZipFile(m, "w"); z.writestr("word/document.xml", "<w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'/>"); z.close()
+    v = m.getvalue(); i = v.rfind(b"PK\x05\x06"); cds, cdo = struct.unpack("<II", v[i + 12:i + 20])
+    r64 = b"PK\x06\x06" + struct.pack("<QHHIIQQQQ", 44, 45, 45, 0, 0, 10**6, 10**6, cds, cdo)
+    open(f, "wb").write(v[:i] + r64 + b"PK\x06\x07" + struct.pack("<IQI", 0, i, 1) + v[i:]); sys.exit()
+if k == "z64": open(f, "wb").write(b"PK\x06\x07" + (1).to_bytes(4, "little") + bytes(8) + (2).to_bytes(4, "little") + b"PK\x05\x06" + bytes(18)); sys.exit()
+z = Z.ZipFile(f, "w", Z.ZIP_DEFLATED); m = {"evil": "../evil.xml", "norels": "word/document.xml"}.get(k, "word/main.xml")
+z.writestr("[Content_Types].xml", "<Types xmlns='http://schemas.openxmlformats.org/package/2006/content-types'/>")
+k == "norels" or z.writestr("_rels/.rels", "<Relationships xmlns='http://schemas.openxmlformats.org/package/2006/relationships'><Relationship Id='r1' Target='%s' Type="
+  "'http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument'/></Relationships>" % ("/" * (k != "evil") + m))
+Z.crc32 = (lambda *a: 1) if k == "bomb" else Z.crc32; z.writestr(m, b"\0" * (21 << 20) if k == "bomb" else d.encode("utf-16") if k == "utf16" else d[:-30] if k == "bad" else d.replace("Spec", "EVILTEXT") if k == "evil" else d)
+[z.writestr("x/%d" % i, "") for i in range(2001 * (k == "many"))]; [z.writestr("w/%02d" % i + "n" * 60000, "") for i in range(40 * (k == "widecd"))]; z.close()
+PY
+}
+dx spec.docx ok; igk "docx converts" 0 "out=$S/spec-docx.md converter=stdlib-docx-1 status=converted reason=- redacted=2" spec.docx $S; fhas "docx header converter" $S/spec-docx.md 'converter: "stdlib-docx-1"'
+[ "$(awk 'n>=2{print} /^---$/{n++}' "$W/$S/spec-docx.md")" = "$(printf '\n# Spec\n\n## Scope\n\n- one\n\n  - two\n\n                - deep\n\na\tb\nc\n\nMail [redacted] or [redacted]\n\n| Key | Va\\|lue |\n| --- | --- |\n| k1 k2 | p1 p2 |')" ]
+row ingest "docx body: headings, lists, tab, br, table" 0 $? 0 "$(cat "$W/$S/spec-docx.md")"; igk "docx rerun unchanged" 0 "converter=stdlib-docx-1 status=unchanged" spec.docx $S
+for k in dtd:unsafe-xml utf16:unsafe-xml bad:bad-xml many:too-many-entries bomb:too-large evil:bad-ooxml deep:bad-xml xnope:bad-xml eucjp:bad-xml; do dx ${k%:*}.docx ${k%:*}; igk "docx ${k%:*}: ${k#*:}" 0 "status=failed reason=${k#*:}" ${k%:*}.docx $S; cat "$out" "$out2" >>"$ig/all"; done
+dx norels.docx norels; igk "docx without rels: word/document.xml" 0 "status=converted" norels.docx $S
+printf 'not a zip' >"$W/nz.docx"; igk "non-zip docx" 0 "status=failed reason=not-ooxml" nz.docx $S; printf x >"$W/s.pptx"; igk "pptx still unsupported" 0 reason=unsupported s.pptx $S
+grep -rqE 'LEAKTEXT|EVILTEXT' "$W/$S" "$ig/all"; row ingest "entity and ../ text never written" 1 $? 0 "$(grep -rlE 'LEAKTEXT|EVILTEXT' "$W/$S")"
+dx pinp.docx pinp; igk "nested paragraphs in a cell finish" 0 status=converted pinp.docx $S; [ "$(grep -o NEST "$W/$S/pinp-docx.md" | wc -l | tr -d ' ')" = 1 ]; row ingest "nested cell text once" 0 $? 0 "$(grep -c NEST "$W/$S/pinp-docx.md")"
+dx mc.docx mc; igk "text box converts" 0 status=converted mc.docx $S; [ "$(grep -o BOXTEXT "$W/$S/mc-docx.md" | wc -l | tr -d ' ')" = 1 ]; row ingest "mc:Fallback copy skipped" 0 $? 0 "$(grep -c BOXTEXT "$W/$S/mc-docx.md")"
+[ "$(grep -o RUNBOX "$W/$S/mc-docx.md" | wc -l | tr -d ' ')" = 1 ]; row ingest "run-level mc:Fallback skipped" 0 $? 0 "$(grep -c RUNBOX "$W/$S/mc-docx.md")"
+dx widecd.docx widecd; igk "huge central directory refused before parsing" 0 "reason=too-many-entries" widecd.docx $S
+dx cut.docx cut; igk "email at the 5 MB cut" 0 "status=converted" cut.docx $S; grep -q 'redacted=[1-9]' "$out"; row ingest "email at the cut is counted" 0 $? 0 "$(cat "$out")"; fnot "email at the cut never leaks" $S/cut-docx.md nguyen
+dx z64.docx z64; igk "multi-disk zip64 locator" 0 "status=failed reason=not-ooxml" z64.docx $S
+dx z64big.docx z64big; igk "zip64 record with 1M entries refused before parsing" 0 "reason=too-many-entries" z64big.docx $S
+dx grid.docx grid; igk "100k x 100k empty table finishes" 0 status=converted grid.docx $S; fhas "wide table truncated" $S/grid-docx.md '_[truncated at 5 MB]_'
+dx big.docx big; igk "over 5 MB docx output" 0 status=converted big.docx $S; fhas "output truncated with a note" $S/big-docx.md '_[truncated at 5 MB]_'
+[ "$(wc -c <"$W/$S/big-docx.md")" -lt 5300000 ]; row ingest "truncated output under 5.3 MB" 0 $? 0 "$(wc -c <"$W/$S/big-docx.md")"
 igk "no args: usage" 1 ""; igk "one arg: usage" 1 "" srs.md; igk "three args: usage" 1 "" srs.md $S x; igk "--slug alone: usage" 1 "" --slug
 (cd "$W" && PATH="$ig/empty" /bin/bash "$ing" srs.md $S >"$out" 2>"$out2"); row ingest "missing python3 is exit 1" 1 $? 0 "$(cat "$out2")"
 

@@ -110,7 +110,7 @@ Add one script, `plugins/devkit/scripts/ingest.sh`.
   - Redacted in both cases.
 - `sha256`: of the original bytes, or of the fetched text for links.
 - `converted`: the local date.
-- `converter`: `pandoc <ver>` | `pdftotext <ver>` | `stdlib <reader-version>` | `passthrough` | `webfetch`.
+- `converter`: `pandoc <ver>` | `pdftotext <ver>` | `stdlib-<format>-<version>` (e.g. `stdlib-docx-1`; no space, because the stdout `converter=` field is space-separated) | `passthrough` | `webfetch`.
 - `redacted`: `<N> (emails and phone numbers in the name and body; names of people are not redacted, best effort)`.
 - `note`: "Original text, verbatim apart from redaction; not translated." For links: "WebFetch output; may be summarized, not verbatim."
 - Reading an existing file: only the first front-matter block (the first line is `---`, up to the next `---` line), with each value parsed by `json.loads`. If it cannot be parsed, the file counts as another source's file.
@@ -198,9 +198,9 @@ Stacked PRs, one per phase. Each is measured with `pr-size.sh <previous phase br
 - Verify: `bash -n plugins/devkit/scripts/ingest.sh && scripts/test-hooks.sh` ends in "All hooks passed.", and `bash plugins/devkit/scripts/pr-size.sh main` exits 0.
 
 ### Phase 2 — zip/XML safety and the docx reader (~190: script ~110, tests ~80)
-- [ ] Zip open (`not-ooxml`), entry, part and total caps, member resolution through rels, the expat pre-parse (`unsafe-xml` / `bad-xml`), then ElementTree. File: `plugins/devkit/scripts/ingest.sh`
-- [ ] docx reader: headings (`Heading1..9`/`Title`), list items by `ilvl`, tables (first row is the header, `|` escaped), `w:tab`, `w:br`. The output cap is checked in the emit loop. File: `plugins/devkit/scripts/ingest.sh`
-- [ ] A python zipfile fixture builder and rows. File: `scripts/test-hooks.sh`. Rows:
+- [x] Zip open (`not-ooxml`), entry, part and total caps, member resolution through rels, the expat pre-parse (`unsafe-xml` / `bad-xml`), then ElementTree. File: `plugins/devkit/scripts/ingest.sh`
+- [x] docx reader: headings (`Heading1..9`/`Title`), list items by `ilvl`, tables (first row is the header, `|` escaped), `w:tab`, `w:br`. The output cap is checked in the emit loop. File: `plugins/devkit/scripts/ingest.sh`
+- [x] A python zipfile fixture builder and rows. File: `scripts/test-hooks.sh`. Rows:
   - docx structure
   - a UTF-8 DOCTYPE gives `unsafe-xml`
   - a UTF-16 part (with BOM) holding a DOCTYPE and an entity gives `unsafe-xml`, and the entity text is not in the output
@@ -303,6 +303,7 @@ Stacked PRs, one per phase. Each is measured with `pr-size.sh <previous phase br
 | Phone numbers in the body split by a zero-width space or `·` are not redacted (names are normalized first; the body is kept verbatim) | A reviewer sees a split number in a source diff | Known limit from the P1 fix round; Phase 6 skills tell the user to review sources before the first commit |
 | Names are over-redacted: any digit run of 9–15 digits starting with `0` or `+` in a file name or folder hides the whole stem (e.g. `v1.0 20241021.md`) | A harmless name shows as `[redacted]` | Accepted: names need no fidelity; the header `sha256` still ties the source to its original |
 | Origin is relative to the nearest `.git` above the cwd; nested repos with an absolute out-dir could give two files one origin | Contrived | Skills run from the project root; noted |
+| ElementTree memory on large parts (a 19 MB part of tiny elements reaches ~700 MB RSS) | Slow or memory-heavy run on a huge docx | Linear and bounded by the 20 MB part and 50 MB input caps; accepted |
 | Redaction false positives damage requirements | `[redacted]` where a number belongs | 10-digit VN mobile with lookarounds, 9–15 digits for others; negative rows |
 | A scaffolder commits `docs/requirements/` on its own | The `git log -- docs/requirements` check prints a commit | Bootstrap stops and tells the user. Not seen in practice (assumption) |
 | WebFetch text left unredacted in the scratch dir | `devkit-ingest.*` left in `$TMPDIR` after a failure | 0700 dir outside the repo, deleted by `--webfetch`; strict guard so nothing else is deleted |
