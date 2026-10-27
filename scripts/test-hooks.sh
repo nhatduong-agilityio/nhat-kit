@@ -1460,6 +1460,62 @@ dx big.docx big; igk "over 5 MB docx output" 0 status=converted big.docx $S; fha
 igk "no args: usage" 1 ""; igk "one arg: usage" 1 "" srs.md; igk "three args: usage" 1 "" srs.md $S x; igk "--slug alone: usage" 1 "" --slug
 (cd "$W" && PATH="$ig/empty" /bin/bash "$ing" srs.md $S >"$out" 2>"$out2"); row ingest "missing python3 is exit 1" 1 $? 0 "$(cat "$out2")"
 
+# --- shell-segments: segment-dump harness; parity with the tokenizer inside block-force-push.sh ---
+sg="$(mktemp -d)"; trap 'rm -rf "$err" "$tf" "$fx" "$out" "$out2" "$gd" "$psd" "$ig" "$sg"' EXIT
+lib="$root/plugins/devkit/scripts/shell-segments.sh"
+cat >"$sg/dump.sh" <<EOF
+. "$lib"
+mode=\$1
+check_segment() { local IFS='|' i=7; printf '%s\n' "\$*"; }
+line_relevant() {
+  case "\$mode:\$1" in all:*|needle:*zz*|git:*git*|git:*gh*) return 0 ;; esac
+  return 1
+}
+scan_segments "\$2"
+printf 'end\n'
+EOF
+sgk() { # sgk <name> <mode> <command> <expected segments, one per line>
+  local got; got="$(bash "$sg/dump.sh" "$2" "$3" 2>&1)"
+  [ "$got" = "${4:+$4$'\n'}end" ]; row shell-segments "$1" 0 $? 0 "got: $got"
+}
+sgk "and-and" all 'a && b' $'a\nb'
+sgk "; | & split" all 'a; b | c & d' $'a\nb\nc\nd'
+sgk "subshell parens" all '(a b) c' $'a|b\nc'
+sgk "nested \$( ) inside quotes" all 'echo "x $(echo "y $(z q)") w" t' $'echo|y \nz|q\necho|x  w|t'
+sgk "backticks" all 'echo `a b` c' $'echo\na|b\nc'
+sgk "heredoc body skipped" all $'cat <<EOF\nfoo bar\nEOF\nnext x' $'cat\nnext|x'
+sgk "heredoc <<- tab-indented end" all $'cat <<-EOF\n\tfoo\n\tEOF\nnext x' $'cat\nnext|x'
+sgk "comment dropped" all 'a b # c d' 'a|b'
+sgk "2>&1 redirect" all 'a b 2>&1 c' 'a|b|c'
+sgk "redirect target dropped" all 'a > f b' 'a|b'
+sgk "here-string text dropped" all 'cat <<< "hi there" x' 'cat|x'
+sgk "backslash continuation" all $'a \\\nb c' 'a|b|c'
+sgk "\$'...' quoting" all "echo \$'a b\\'c' d" "echo|a b'c|d"
+sgk "(( )) arithmetic" all 'a $((1+2)) b; (( x )) c; d' $'a||b\nc\nd'
+sgk "all mode dumps every line" all $'foo\nzz bar' $'foo\nzz|bar'
+sgk "needle mode skips irrelevant line" needle $'foo a\nzz bar\nq && r' 'zz|bar'
+sgk "needle mode still tracks a quote" needle $'echo "a\nb" x\nzz y' $'echo|a\nb|x\nzz|y'
+sgk "callback local i leaves scan intact" all 'a b; c d' $'a|b\nc|d'
+sgk "line over 16 KB skipped" all "$(printf 'before\n'; printf 'echo %17000s; hit\n' x; printf 'after\n')" $'before\nafter'
+sgk "empty command" all '' ''
+# Parity: run every single bash_cmd row of the push corpus through the tokenizer still inside
+# block-force-push.sh (lines 138-325, check_segment swapped for a dump) and the library.
+{ printf 'here=%q\n' "$sg"; cat <<'EOF'
+check_segment() { local IFS='|'; printf '%s\n' "$*"; }
+cmd="${1//$'\r'/}"
+EOF
+sed -n '138,325p' "$root/plugins/devkit/scripts/block-force-push.sh"; } >"$sg/ref.sh"
+bash_cmd() { printf '%s\0' "$2"; }
+eval "$(sed -n '/^bash_cmd [02] /,/^expect "\$push" 0 "push: empty input/p' "$root/scripts/test-hooks.sh" | sed '$d')" >"$sg/corpus"
+sgn=0; sgbad=''
+while IFS= read -r -d '' c; do
+  sgn=$((sgn + 1))
+  a="$(bash "$sg/ref.sh" "$c" 2>&1; echo end)"
+  b="$(bash "$sg/dump.sh" git "${c//$'\r'/}" 2>&1)"
+  [ "$a" = "$b" ] || sgbad="$sgbad [$c]"
+done <"$sg/corpus"
+[ "$sgn" -gt 90 ] && [ -z "$sgbad" ]; row shell-segments "parity: $sgn push corpus commands" 0 $? 0 "differs:$sgbad"
+
 echo "$cases cases, $nfail failed, total $total ms"
 [ "$fail" -eq 0 ] && echo "All hooks passed." || echo "Some hooks failed."
 exit "$fail"
